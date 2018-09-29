@@ -32,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
 
         addItemSelectionListener(); //init dropdown device menu
         BluetoothSearchButton(); //init bluetooth button
+        ConfigButton(); //init config button
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -87,6 +88,17 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if (debug) Log.d(logTag,"searching for bluetooth devices...");
+            }
+        });
+    }
+    //Initialize press callback for "Configure device" button
+    public void ConfigButton() {
+        Button bluetooth_search = (Button) findViewById(R.id.config_button);
+        bluetooth_search.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String text = device_dropdown.getSelectedItem().toString();
+                if (debug) Log.d(logTag,"configure device: " + text);
             }
         });
     }
