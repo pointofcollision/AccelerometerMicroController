@@ -4,6 +4,7 @@
     <string name="app_acronym">Wireless Accelerometer Tool (WAT)</string>
     <string name="scan_button">Scan for devices</string>
     <string name="device_config_button">Configure Device</string>
+    <string name="select_connected_device">Select a connected device:</string>
     <string name="default_dropdown_connected_devices">Select device to configure</string>
     <string-array name="connected_devices">
         <item>Default</item>
