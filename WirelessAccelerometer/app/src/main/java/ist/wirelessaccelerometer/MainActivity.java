@@ -7,6 +7,7 @@ import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.transition.Visibility;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -82,7 +83,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 //item selection handle here
-                if (debug) Log.d(logTag, "Dropdown item selected: " + parent.getItemAtPosition(pos).toString());
+                String item_selected = parent.getItemAtPosition(pos).toString();
+                if (debug) Log.d(logTag, "Dropdown item selected: " + item_selected);
+                Button config_btn = (Button) findViewById(R.id.config_button);
+                if (item_selected.equals("Default")) {
+                    config_btn.setVisibility(View.INVISIBLE); //no sensor selected
+                }
+                else {
+                    config_btn.setVisibility(View.VISIBLE); //sensor selected, allow to configure
+                }
             }
 
             @Override
@@ -102,8 +111,8 @@ public class MainActivity extends AppCompatActivity {
     }
     //Initialize press callback for "Configure device" button
     public void ConfigButton() {
-        Button bluetooth_search = (Button) findViewById(R.id.config_button);
-        bluetooth_search.setOnClickListener(new View.OnClickListener() {
+        Button config_btn = (Button) findViewById(R.id.config_button);
+        config_btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 String text = device_dropdown.getSelectedItem().toString();
