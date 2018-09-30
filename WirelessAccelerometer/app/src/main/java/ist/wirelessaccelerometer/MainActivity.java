@@ -1,6 +1,8 @@
 package ist.wirelessaccelerometer;
 
+import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
+import android.content.Intent;
 import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
@@ -33,6 +35,13 @@ public class MainActivity extends AppCompatActivity {
         addItemSelectionListener(); //init dropdown device menu
         BluetoothSearchButton(); //init bluetooth button
         ConfigButton(); //init config button
+
+        int REQUEST_ENABLE_BT = 1; //"locally defined integer greater than 0" according to documentation
+        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (!mBluetoothAdapter.isEnabled()) {  //
+            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+        }
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
