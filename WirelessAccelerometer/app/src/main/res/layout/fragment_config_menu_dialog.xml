@@ -10,7 +10,7 @@
         android:id="@+id/sample_rate"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Sample rate (Hz)" />
+        android:text="@string/sample_rate_text" />
 
     <EditText
         android:id="@+id/sample_rate_input"
@@ -23,7 +23,7 @@
         android:id="@+id/bin_size"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Bin size" />
+        android:text="@string/bin_text" />
 
     <EditText
         android:id="@+id/bin_size_input"
@@ -36,7 +36,7 @@
         android:id="@+id/wake_up_interval"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Wake up interval (seconds)" />
+        android:text="@string/wake_up_interval_text" />
 
 
 
@@ -45,6 +45,7 @@
         android:layout_width="match_parent"  android:layout_height="wrap_content"
         android:inputType="number|numberDecimal"
         android:imeOptions="actionDone" />
+
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
@@ -55,8 +56,10 @@
             android:layout_height="wrap_content"
             android:layout_alignParentTop="true"
             android:layout_marginTop="0dp"
+            android:layout_marginEnd="17dp"
+            android:layout_toStartOf="@+id/button_submit"
             android:layout_weight="0.5"
-            android:text="Cancel"
+            android:text="@string/cancel_text"
             android:textSize="12sp" />
 
         <Button
@@ -67,8 +70,10 @@
             android:layout_alignParentEnd="true"
             android:layout_alignParentRight="true"
             android:layout_marginTop="0dp"
+            android:layout_marginEnd="0dp"
+            android:layout_marginRight="0dp"
             android:layout_weight="0.5"
-            android:text="Submit"
+            android:text="@string/submit_text"
             android:textSize="12sp" />
 
     </RelativeLayout>
