@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/config_menu_dialog"
+    android:layout_width="wrap_content" android:layout_height="wrap_content"
+    android:layout_gravity="center" android:orientation="vertical"  >
+
+    <TextView
+        android:id="@+id/sample_rate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Sample rate (Hz)" />
+
+    <EditText
+        android:id="@+id/sample_rate_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:imeOptions="actionDone"
+        android:inputType="number" />
+
+    <TextView
+        android:id="@+id/bin_size"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Bin size" />
+
+    <EditText
+        android:id="@+id/bin_size_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:imeOptions="actionDone"
+        android:inputType="number" />
+
+    <TextView
+        android:id="@+id/wake_up_interval"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Wake up interval (seconds)" />
+
+
+
+    <EditText
+        android:id="@+id/wake_up_interval_input"
+        android:layout_width="match_parent"  android:layout_height="wrap_content"
+        android:inputType="number|numberDecimal"
+        android:imeOptions="actionDone" />
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:id="@+id/button_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_marginTop="0dp"
+            android:layout_weight="0.5"
+            android:text="Cancel"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/button_submit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
+            android:layout_marginTop="0dp"
+            android:layout_weight="0.5"
+            android:text="Submit"
+            android:textSize="12sp" />
+
+    </RelativeLayout>
+
+</LinearLayout>

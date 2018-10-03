@@ -4,10 +4,13 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.hardware.usb.UsbManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.transition.Visibility;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -20,7 +23,7 @@ import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFragmentInteractionListener {
     private boolean debug = true; //flag to enable debug messages, enable for testing
     private String logTag="log_placeholder";
     private Spinner device_dropdown;
@@ -36,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
         addItemSelectionListener(); //init dropdown device menu
         BluetoothSearchButton(); //init bluetooth button
         ConfigButton(); //init config button
+
 
         int REQUEST_ENABLE_BT = 1; //"locally defined integer greater than 0" according to documentation
         BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -76,7 +80,9 @@ public class MainActivity extends AppCompatActivity {
 
         return super.onOptionsItemSelected(item);
     }
-
+    public void onFragmentInteraction(Uri uri){
+        //android.support.v4.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("fragmentID");
+    };
     //initialize dropdown menu callback, called when user selects an option
     public void addItemSelectionListener() {
         device_dropdown = (Spinner) findViewById(R.id.spinner_modes);
@@ -118,6 +124,23 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 String text = device_dropdown.getSelectedItem().toString();
                 if (debug) Log.d(logTag,"configure device: " + text);
+                //launch configmenu fragment
+                //give it the current settings for your sensor somehow
+                //dialog fragment
+                FragmentManager fm = getSupportFragmentManager();
+                ConfigMenuDialog editNameDialogFragment = ConfigMenuDialog.newInstance(text);
+                editNameDialogFragment.show(fm, "fragment_config_menu_dialog");
+
+
+
+                //non dialog fragment
+                //FragmentManager fragmentManager = getSupportFragmentManager();
+                //FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+                //ConfigMenu fragment = new ConfigMenu();
+                //fragmentTransaction.add(R.id.MainScreen, fragment,"ConfigMenu");
+                //fragmentTransaction.replace(R.id.MainScreen, fragment);
+                //fragmentTransaction.addToBackStack(null);
+                //fragmentTransaction.commit();
             }
         });
     }
