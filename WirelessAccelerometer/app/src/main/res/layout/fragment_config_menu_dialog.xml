@@ -16,34 +16,57 @@
         android:id="@+id/sample_rate_input"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:hint="@string/sample_rate_bounds"
         android:imeOptions="actionDone"
-        android:inputType="number" />
+        android:inputType="number"
+        android:maxLength="9"/>
 
     <TextView
         android:id="@+id/bin_size"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/bin_text" />
-
-    <EditText
-        android:id="@+id/bin_size_input"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:imeOptions="actionDone"
-        android:inputType="number" />
+        android:orientation="horizontal">
+        <EditText
+            android:id="@+id/bin_size_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:imeOptions="actionDone"
+            android:layout_weight="0.5"
+            android:inputType="number"
+            android:hint="@string/bin_size_bounds"
+            android:maxLength="9"/>
 
+        <Spinner
+            android:id="@+id/unit_dropdown"
+            android:layout_width="0dp"
+            android:layout_weight="0.5"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentTop="true"
+            android:entries="@array/unit_types_bins"
+            android:prompt="@string/default_units"
+            android:spinnerMode="dropdown"
+            android:visibility="visible" />
+    </LinearLayout>
     <TextView
-        android:id="@+id/wake_up_interval"
+        android:id="@+id/num_time_bins_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/wake_up_interval_text" />
+        android:text="@string/num_time_bins" />
 
 
 
     <EditText
-        android:id="@+id/wake_up_interval_input"
+        android:id="@+id/num_time_bins_input"
         android:layout_width="match_parent"  android:layout_height="wrap_content"
-        android:inputType="number|numberDecimal"
+        android:inputType="number"
+        android:maxLength="9"
+        android:hint="@string/num_bin_bounds"
         android:imeOptions="actionDone" />
 
     <RelativeLayout
@@ -54,10 +77,10 @@
             android:id="@+id/button_cancel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
             android:layout_alignParentTop="true"
             android:layout_marginTop="0dp"
-            android:layout_marginEnd="17dp"
-            android:layout_toStartOf="@+id/button_submit"
             android:layout_weight="0.5"
             android:text="@string/cancel_text"
             android:textSize="12sp" />

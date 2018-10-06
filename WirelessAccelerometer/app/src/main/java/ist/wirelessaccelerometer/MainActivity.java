@@ -125,22 +125,10 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
                 String text = device_dropdown.getSelectedItem().toString();
                 if (debug) Log.d(logTag,"configure device: " + text);
                 //launch configmenu fragment
-                //give it the current settings for your sensor somehow
                 //dialog fragment
                 FragmentManager fm = getSupportFragmentManager();
                 ConfigMenuDialog editNameDialogFragment = ConfigMenuDialog.newInstance(text);
                 editNameDialogFragment.show(fm, "fragment_config_menu_dialog");
-
-
-
-                //non dialog fragment
-                //FragmentManager fragmentManager = getSupportFragmentManager();
-                //FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-                //ConfigMenu fragment = new ConfigMenu();
-                //fragmentTransaction.add(R.id.MainScreen, fragment,"ConfigMenu");
-                //fragmentTransaction.replace(R.id.MainScreen, fragment);
-                //fragmentTransaction.addToBackStack(null);
-                //fragmentTransaction.commit();
             }
         });
     }

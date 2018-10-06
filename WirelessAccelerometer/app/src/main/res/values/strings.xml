@@ -7,15 +7,24 @@
     <string name="select_connected_device">Select a connected device:</string>
     <string name="cancel_text">Cancel</string>
     <string name="submit_text">Submit</string>
-    <string name="wake_up_interval_text">Wake up interval (seconds)</string>
+    <string name="num_time_bins">Number of time bins</string>
     <string name="bin_text">Bin size</string>
     <string name="sample_rate_text">Sample rate (samples/second)</string>
     <string name="default_dropdown_connected_devices">Select device to configure</string>
+    <string name="default_units">Select units</string>
+    <string name="sample_rate_bounds">100-3200 sps</string>
+    <string name="bin_size_bounds">500ms - 7 days</string>
+    <string name="num_bin_bounds">1-10000 time bins</string>
     <string-array name="connected_devices">
         <item>Default</item>
         <item>Example sensor 1</item>
     </string-array>
 
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string-array name="unit_types_bins">
+        <item>Milliseconds</item>
+        <item>Seconds</item>
+        <item>Minutes</item>
+        <item>Hours</item>
+        <item>Days</item>
+    </string-array>
 </resources>
