@@ -9,6 +9,8 @@
     <TextView
         android:id="@+id/sample_rate"
         android:layout_width="wrap_content"
+        android:layout_marginLeft="8dp"
+        android:layout_marginStart="8dp"
         android:layout_height="wrap_content"
         android:text="@string/sample_rate_text" />
 
@@ -24,6 +26,8 @@
     <TextView
         android:id="@+id/bin_size"
         android:layout_width="wrap_content"
+        android:layout_marginLeft="8dp"
+        android:layout_marginStart="8dp"
         android:layout_height="wrap_content"
         android:text="@string/bin_text" />
     <LinearLayout
@@ -57,6 +61,8 @@
         android:id="@+id/num_time_bins_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginLeft="8dp"
+        android:layout_marginStart="8dp"
         android:text="@string/num_time_bins" />
 
 
