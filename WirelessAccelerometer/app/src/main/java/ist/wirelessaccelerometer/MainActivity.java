@@ -1,8 +1,10 @@
 package ist.wirelessaccelerometer;
 
 import android.bluetooth.BluetoothAdapter;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.usb.UsbManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -24,10 +26,11 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFragmentInteractionListener {
-    private boolean debug = true; //flag to enable debug messages, enable for testing
+    public static boolean debug = true; //flag to enable debug messages, enable for testing
     private String logTag="log_placeholder";
     private Spinner device_dropdown;
-
+    public final static String ACTION_CONFIG="ist.wirelessaccelerometer.ACTION_CONFIG"; //intent tag
+    BroadcastReceiver fragmentReceiver;
     //Run on activity startup only, initialize button connections and threads.
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +62,37 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
         });
     }
 
+    /*
+    Called during onCreate and whenever the activity returns from another page
+     */
+    protected void onResume() {
+        super.onResume();
+        IntentFilter intentReceiver= new IntentFilter(ACTION_CONFIG);
+        fragmentReceiver= new BroadcastReceiver(){
+            @Override
+            public void onReceive(Context context, Intent intent){
+                if (intent.getAction().equals(ACTION_CONFIG)){
+                    int sampleRate = intent.getIntExtra("sampleRate",0);
+                    int numTimeBins = intent.getIntExtra("numTimeBins",0);
+                    int timeBinSize = intent.getIntExtra("timeBinSize",0);
+                    if (debug) Log.d(logTag, "sample rate received: " + String.valueOf(sampleRate));
+                    if (debug) Log.d(logTag, "num time bins received: " + String.valueOf(numTimeBins));
+                    if (debug) Log.d(logTag, "time bin size received: " + String.valueOf(timeBinSize));
+                }
+            }
+        };
+        this.registerReceiver(fragmentReceiver,intentReceiver);
+    }
+
+    protected void onPause() {
+        //moved the unregister receivers from onstop to onpause, because onstop is not triggered by leaving the screen
+        //if it has threads running, or if the usb intent is being sent (when the device is being connected), so it can
+        //result in extra receivers running which messes up the graph. Functional with this change
+        super.onPause();
+        unregisterReceiver(fragmentReceiver);
+
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -81,7 +115,7 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
         return super.onOptionsItemSelected(item);
     }
     public void onFragmentInteraction(Uri uri){
-        //android.support.v4.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("fragmentID");
+        android.support.v4.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("fragmentID");
     };
     //initialize dropdown menu callback, called when user selects an option
     public void addItemSelectionListener() {
