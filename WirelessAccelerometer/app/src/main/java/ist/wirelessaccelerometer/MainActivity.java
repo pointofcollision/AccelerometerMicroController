@@ -19,11 +19,16 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Adapter;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
+import android.widget.SpinnerAdapter;
 import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFragmentInteractionListener {
     public static boolean debug = true; //flag to enable debug messages, enable for testing
@@ -31,6 +36,8 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
     private Spinner device_dropdown;
     public final static String ACTION_CONFIG="ist.wirelessaccelerometer.ACTION_CONFIG"; //intent tag
     BroadcastReceiver fragmentReceiver;
+    ConnectedDevices connDevices;
+    private int sensorCount = 1; //used for new sensor ID naming, unless they rename it
     //Run on activity startup only, initialize button connections and threads.
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,15 +58,16 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
 
+        connDevices = new ConnectedDevices();
+        //testing purposes only
+        String testUUID = "New sensor 1";
+        BluetoothSensor testSensor = new BluetoothSensor(testUUID);
+        connDevices.addSensor(testUUID,testSensor);
+        addDropdownSensor(testUUID);
+        //testing purposes only
+
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setVisibility(View.INVISIBLE);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
     }
 
     /*
@@ -75,9 +83,28 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
                     int sampleRate = intent.getIntExtra("sampleRate",0);
                     int numTimeBins = intent.getIntExtra("numTimeBins",0);
                     int timeBinSize = intent.getIntExtra("timeBinSize",0);
+                    //TODO: add UUID change support
+                    String receivedUUID = intent.getStringExtra("UUID");
+                    String newUUID = intent.getStringExtra("updated_UUID");
+                    if (debug) Log.d(logTag, "receivedUUID: " + String.valueOf(receivedUUID));
                     if (debug) Log.d(logTag, "sample rate received: " + String.valueOf(sampleRate));
                     if (debug) Log.d(logTag, "num time bins received: " + String.valueOf(numTimeBins));
                     if (debug) Log.d(logTag, "time bin size received: " + String.valueOf(timeBinSize));
+
+
+                    BluetoothSensor currSensor = connDevices.getSensor(receivedUUID);
+                    currSensor.setConfig_state(1); //is now configured
+                    currSensor.setBinSize(timeBinSize);
+                    currSensor.setSampleRate(sampleRate);
+                    currSensor.setTimeBins(numTimeBins);
+                    if (!newUUID.equals(receivedUUID)) { //update UUID to new one
+                        connDevices.removeSensor(receivedUUID);
+                        currSensor.setUUID(newUUID);
+                        connDevices.addSensor(newUUID,currSensor);
+                        updateDropDownSensor(receivedUUID,newUUID); //also update dropdown list
+                    } else { //use previous UUID
+                        connDevices.updateSensor(receivedUUID,currSensor);
+                    }
                 }
             }
         };
@@ -150,6 +177,77 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
             }
         });
     }
+
+    /*
+    Function to add string UUID to the dropdown menu of selectable devices
+     */
+    private void addDropdownSensor(String UUID) {
+        device_dropdown = (Spinner) findViewById(R.id.spinner_modes);
+
+        Adapter adapter = device_dropdown.getAdapter();
+        int n = adapter.getCount();
+        List<String> options = new ArrayList<String>(n);
+        for (int i = 0; i < n; i++) {
+            String dropdownOption = (String) adapter.getItem(i);
+            options.add(dropdownOption);
+        }
+        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, options);
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        device_dropdown.setAdapter(spinnerAdapter);
+        spinnerAdapter.add(UUID);
+        spinnerAdapter.notifyDataSetChanged();
+
+        //this will add one value to the values currently stored on the dropdown menu
+    }
+
+    /*
+    Function to change the old UUID on the dropdown menu to the new one
+     */
+    private void updateDropDownSensor(String UUID_old,String UUID_new) {
+        device_dropdown = (Spinner) findViewById(R.id.spinner_modes);
+
+        Adapter adapter = device_dropdown.getAdapter();
+        int n = adapter.getCount();
+        List<String> options = new ArrayList<String>(n);
+        for (int i = 0; i < n; i++) {
+            String dropdownOption = (String) adapter.getItem(i);
+            if (dropdownOption.equals(UUID_old)) {
+                options.add(UUID_new);
+            } else {
+                options.add(dropdownOption);
+            }
+        }
+        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, options);
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        device_dropdown.setAdapter(spinnerAdapter);
+        spinnerAdapter.notifyDataSetChanged();
+        //this will add one value to the values currently stored on the dropdown menu
+    }
+
+    /*
+    Function to remove string UUID from the dropdown menu of selectable devices
+     */
+    private void removeDropdownSensor(String UUID) {
+        device_dropdown = (Spinner) findViewById(R.id.spinner_modes);
+
+        Adapter adapter = device_dropdown.getAdapter();
+        int n = adapter.getCount();
+        List<String> options = new ArrayList<String>(n);
+        for (int i = 0; i < n; i++) {
+            String dropdownOption = (String) adapter.getItem(i);
+            options.add(dropdownOption);
+        }
+        ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, options);
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        device_dropdown.setAdapter(spinnerAdapter);
+        spinnerAdapter.remove(UUID);
+        spinnerAdapter.notifyDataSetChanged();
+
+    }
+
+
+
+
     //Initialize press callback for "Configure device" button
     public void ConfigButton() {
         Button config_btn = (Button) findViewById(R.id.config_button);
@@ -158,10 +256,10 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
             public void onClick(View v) {
                 String text = device_dropdown.getSelectedItem().toString();
                 if (debug) Log.d(logTag,"configure device: " + text);
-                //launch configmenu fragment
-                //dialog fragment
+                //launch configmenu dialog fragment
+                BluetoothSensor selectedSensor = connDevices.getSensor(text); //text corresponds to UUID
                 FragmentManager fm = getSupportFragmentManager();
-                ConfigMenuDialog editNameDialogFragment = ConfigMenuDialog.newInstance(text);
+                ConfigMenuDialog editNameDialogFragment = ConfigMenuDialog.newInstance(text,selectedSensor);
                 editNameDialogFragment.show(fm, "fragment_config_menu_dialog");
             }
         });

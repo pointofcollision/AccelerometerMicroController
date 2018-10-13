@@ -7,6 +7,23 @@
     android:layout_gravity="center" android:orientation="vertical"  >
 
     <TextView
+        android:id="@+id/UUID_text"
+        android:layout_width="wrap_content"
+        android:layout_marginLeft="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_height="wrap_content"
+        android:text="@string/UUID_text_string" />
+
+
+    <EditText
+        android:id="@+id/UUID_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:imeOptions="actionDone"
+        android:inputType="textShortMessage"/>
+
+
+    <TextView
         android:id="@+id/sample_rate"
         android:layout_width="wrap_content"
         android:layout_marginLeft="8dp"

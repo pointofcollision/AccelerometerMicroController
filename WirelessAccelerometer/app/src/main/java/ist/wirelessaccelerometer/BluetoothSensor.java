@@ -4,6 +4,7 @@ public class BluetoothSensor {
     public BluetoothSensor(String UUID) {
         this.UUID = UUID;
         this.data_state = 2; //starting state, off
+        this.config_state = 0; //starting state, unconfigured.
     }
     private String config_states[] = {"Unconfigured","Configured"};
     private String data_states[] = {"Standby","Active","Off"};

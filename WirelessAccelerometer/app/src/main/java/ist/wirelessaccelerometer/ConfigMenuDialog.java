@@ -37,6 +37,7 @@ public class ConfigMenuDialog extends DialogFragment {
     private EditText sampleRateInput;
     private EditText numTimeBins;
     private EditText timeBinSize;
+    private EditText UUIDChange;
     private Button submitButton;
     private int minSampleRate = 100;
     private int maxSampleRate = 3200;
@@ -49,13 +50,16 @@ public class ConfigMenuDialog extends DialogFragment {
     public ConfigMenuDialog() {
         // Empty constructor is required for DialogFragment
     }
-    //
-    public static ConfigMenuDialog newInstance(String title) { //TODO: add ConnectedDevice object as param
+
+    public static ConfigMenuDialog newInstance(String title, BluetoothSensor selectedSensor) {
         ConfigMenuDialog frag = new ConfigMenuDialog();
         Bundle args = new Bundle();
         args.putString("title", title);
-        //TODO: extract the current recording control parameters (RCP) from the ConnectedDevice object
-        //TODO: attach the parameters to the bundle here, prefill the edit-text fields with them
+        args.putString("sensor_UUID", selectedSensor.getUUID());
+        args.putInt("sensor_bin_size", selectedSensor.getBinSize());
+        args.putInt("sensor_sample_rate",selectedSensor.getSampleRate());
+        args.putInt("sensor_num_time_bins",selectedSensor.getTimeBins());
+        args.putInt("config_state",selectedSensor.getConfig_state());
         frag.setArguments(args);
         return frag;
     }
@@ -71,16 +75,23 @@ public class ConfigMenuDialog extends DialogFragment {
         super.onViewCreated(view, savedInstanceState);
         // Get field from view
         // Fetch arguments from bundle and set title
-        String title = getArguments().getString("title", "Enter Name");
+        Bundle args = getArguments();
+        String title = args.getString("title", "Enter Name");
         getDialog().setTitle(title);
         // Show soft keyboard automatically and request focus to field
         sampleRateInput = (EditText) view.findViewById(R.id.sample_rate_input);
         sampleRateInput.requestFocus();
-
+        UUIDChange = (EditText) view.findViewById(R.id.UUID_input);
+        UUIDChange.setText(args.getString("title"));
         addSampleRateListener(view); //sample rate range restriction
         addNumTimeBinsListener(view); //(number of) time bins range restriction
         addUnitSelectionListener(view); //registers the dropdown menu for unit selection on bin size
-        addSubmitButtonListener(view);
+        addSubmitButtonListener(view, title);
+
+        int configState = args.getInt("config_state");
+        if (configState != 0) { //dont prefill values if the device is unconfigured
+            prefillValues(view, args);
+        }
 
         getDialog().getWindow().setSoftInputMode(
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
@@ -97,6 +108,18 @@ public class ConfigMenuDialog extends DialogFragment {
         });
     }
 
+    /*
+    Function to prefill the editText fields with the sensor configuration data stored for it,
+    which the dialog fragment will have received in the form of a bundle
+     */
+    private void prefillValues(View view, Bundle args) {
+        timeBinSize = (EditText) view.findViewById(R.id.bin_size_input);
+        numTimeBins = (EditText) view.findViewById(R.id.num_time_bins_input);
+        sampleRateInput = (EditText) view.findViewById(R.id.sample_rate_input);
+        numTimeBins.setText(String.valueOf(args.getInt("sensor_num_time_bins")));
+        sampleRateInput.setText(String.valueOf(args.getInt("sensor_sample_rate")));
+        timeBinSize.setText(String.valueOf(args.getInt("sensor_bin_size")));
+    }
     /*
     Function to take in the root view of the dialog fragment and add a focus change
     listener to the "sample_rate_input" view, limiting allowed values to a range when user
@@ -155,8 +178,10 @@ public class ConfigMenuDialog extends DialogFragment {
     Function to send data from the edit text fields back to the main activity in the form of
     an intent.
      */
-    private void addSubmitButtonListener(View view) {
+    private void addSubmitButtonListener(View view,String title) {
         submitButton = (Button) view.findViewById(R.id.button_submit);
+        final String titleSaved = title;
+        if (debug) Log.d(logTag, "receivedUUID: " + String.valueOf(title));
         submitButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -171,6 +196,7 @@ public class ConfigMenuDialog extends DialogFragment {
                 timeBinSize = (EditText) parent.findViewById(R.id.bin_size_input);
                 timeBinSize.requestFocus();
                 sampleRateInput.requestFocus(); // just in case they didn't enter any values
+                UUIDChange = (EditText) parent.findViewById(R.id.UUID_input);
 
                 Intent configIntent=new Intent();
                 configIntent.setAction(ACTION_CONFIG);
@@ -179,6 +205,10 @@ public class ConfigMenuDialog extends DialogFragment {
                 //convert time bin size from whatever units it is in to milliseconds.
                 int rawBinSize = Integer.valueOf(timeBinSize.getText().toString());
                 configIntent.putExtra("timeBinSize", convertToMs(rawBinSize));
+                configIntent.putExtra("UUID",titleSaved);
+                if (debug) Log.d(logTag, "updated UUID: " + String.valueOf(UUIDChange.getText().toString()));
+                configIntent.putExtra("updated_UUID",UUIDChange.getText().toString());
+                //TODO: add new UUID field
                 getActivity().sendBroadcast(configIntent);
                 fragmentTransaction.remove(fragment);
                 fragmentTransaction.commit();
