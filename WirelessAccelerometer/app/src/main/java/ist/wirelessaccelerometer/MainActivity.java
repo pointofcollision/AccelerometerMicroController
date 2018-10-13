@@ -26,6 +26,7 @@ import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.SpinnerAdapter;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,6 +50,8 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
         addItemSelectionListener(); //init dropdown device menu
         BluetoothSearchButton(); //init bluetooth button
         ConfigButton(); //init config button
+        StartButton();
+        StopButton();
 
 
         int REQUEST_ENABLE_BT = 1; //"locally defined integer greater than 0" according to documentation
@@ -65,9 +68,6 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
         connDevices.addSensor(testUUID,testSensor);
         addDropdownSensor(testUUID);
         //testing purposes only
-
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setVisibility(View.INVISIBLE);
     }
 
     /*
@@ -83,7 +83,6 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
                     int sampleRate = intent.getIntExtra("sampleRate",0);
                     int numTimeBins = intent.getIntExtra("numTimeBins",0);
                     int timeBinSize = intent.getIntExtra("timeBinSize",0);
-                    //TODO: add UUID change support
                     String receivedUUID = intent.getStringExtra("UUID");
                     String newUUID = intent.getStringExtra("updated_UUID");
                     if (debug) Log.d(logTag, "receivedUUID: " + String.valueOf(receivedUUID));
@@ -105,6 +104,8 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
                     } else { //use previous UUID
                         connDevices.updateSensor(receivedUUID,currSensor);
                     }
+                    Toast.makeText(getApplicationContext(), "Configuration Updated",
+                            Toast.LENGTH_LONG).show();
                 }
             }
         };
@@ -154,11 +155,17 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
                 String item_selected = parent.getItemAtPosition(pos).toString();
                 if (debug) Log.d(logTag, "Dropdown item selected: " + item_selected);
                 Button config_btn = (Button) findViewById(R.id.config_button);
+                Button start_btn = (Button) findViewById(R.id.start_button);
+                Button stop_btn = (Button) findViewById(R.id.stop_button);
                 if (item_selected.equals("Default")) {
                     config_btn.setVisibility(View.INVISIBLE); //no sensor selected
+                    start_btn.setVisibility(View.INVISIBLE);
+                    stop_btn.setVisibility(View.INVISIBLE);
                 }
                 else {
                     config_btn.setVisibility(View.VISIBLE); //sensor selected, allow to configure
+                    start_btn.setVisibility(View.VISIBLE);
+                    stop_btn.setVisibility(View.VISIBLE);
                 }
             }
 
@@ -174,6 +181,57 @@ public class MainActivity extends AppCompatActivity implements ConfigMenu.OnFrag
             @Override
             public void onClick(View v) {
                 if (debug) Log.d(logTag,"searching for bluetooth devices...");
+            }
+        });
+    }
+
+    /*
+    Function to initialize start button callback
+     */
+    public void StartButton() {
+        Button start_btn = (Button) findViewById(R.id.start_button);
+        start_btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (debug) Log.d(logTag,"attempt to start streaming");
+                device_dropdown = (Spinner) findViewById(R.id.spinner_modes);
+                String selectedSensor = device_dropdown.getSelectedItem().toString();
+                if (!selectedSensor.equals("Default")) {
+                    BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
+                    int deviceConfigured = activeSensor.getConfig_state(); //check if configured
+                    if (deviceConfigured == 0) {
+                        Toast.makeText(getApplicationContext(), "Device not configured",
+                                Toast.LENGTH_LONG).show();
+                    } else {
+                        //TODO: Start communication function
+                        if (debug) Log.d(logTag,"start streaming");
+                    }
+                } else {
+                    Toast.makeText(getApplicationContext(), "No Device Selected",
+                            Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+    }
+    /*
+    Function to initialize stop button callback
+     */
+    public void StopButton() {
+        Button stop_btn = (Button) findViewById(R.id.stop_button);
+        stop_btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (debug) Log.d(logTag,"attempt to start streaming");
+                device_dropdown = (Spinner) findViewById(R.id.spinner_modes);
+                String selectedSensor = device_dropdown.getSelectedItem().toString();
+                if (!selectedSensor.equals("Default")) {
+                    BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
+                    //TODO: Stop communication function
+                    if (debug) Log.d(logTag,"stop streaming");
+                } else {
+                    Toast.makeText(getApplicationContext(), "No Device Selected",
+                            Toast.LENGTH_LONG).show();
+                }
             }
         });
     }
