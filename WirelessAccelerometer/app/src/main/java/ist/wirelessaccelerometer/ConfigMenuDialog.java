@@ -45,6 +45,7 @@ public class ConfigMenuDialog extends DialogFragment {
     private int maxTimeBins = 10000;
     private int minTimeBin = 0;
     private int maxTimeBin = 0;
+    private String selected_units = "Milliseconds";
     private String logTag="log_placeholder";
 
     public ConfigMenuDialog() {
@@ -85,13 +86,16 @@ public class ConfigMenuDialog extends DialogFragment {
         UUIDChange.setText(args.getString("title"));
         addSampleRateListener(view); //sample rate range restriction
         addNumTimeBinsListener(view); //(number of) time bins range restriction
-        addUnitSelectionListener(view); //registers the dropdown menu for unit selection on bin size
-        addSubmitButtonListener(view, title);
 
         int configState = args.getInt("config_state");
         if (configState != 0) { //dont prefill values if the device is unconfigured
             prefillValues(view, args);
         }
+
+        addUnitSelectionListener(view); //registers the dropdown menu for unit selection on bin size
+        addSubmitButtonListener(view, title);
+
+
 
         getDialog().getWindow().setSoftInputMode(
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
@@ -204,7 +208,7 @@ public class ConfigMenuDialog extends DialogFragment {
                 configIntent.putExtra("numTimeBins", Integer.valueOf(numTimeBins.getText().toString()));
                 //convert time bin size from whatever units it is in to milliseconds.
                 int rawBinSize = Integer.valueOf(timeBinSize.getText().toString());
-                configIntent.putExtra("timeBinSize", convertToMs(rawBinSize));
+                configIntent.putExtra("timeBinSize", convertToMsRaw(rawBinSize));
                 configIntent.putExtra("UUID",titleSaved);
                 if (debug) Log.d(logTag, "updated UUID: " + String.valueOf(UUIDChange.getText().toString()));
                 configIntent.putExtra("updated_UUID",UUIDChange.getText().toString());
@@ -220,7 +224,7 @@ public class ConfigMenuDialog extends DialogFragment {
     Function to take in the current number saved in the time bin size field, look at the selected units,
     and convert the result to milliseconds.
      */
-    private int convertToMs(int number) {
+    private int convertToMsRaw(int number) {
         int ms = 0;
         Spinner unitDropdown = (Spinner) getView().findViewById(R.id.unit_dropdown);
         String item_selected = unitDropdown.getSelectedItem().toString();
@@ -249,6 +253,161 @@ public class ConfigMenuDialog extends DialogFragment {
         return ms;
     }
 
+    /*
+    Function to take in the current number saved in the time bin size field, look at the selected units,
+    and convert the result to milliseconds, based on previous units
+     */
+    private int convertToMs(int number, String selectedUnits) {
+        int ms = 0;
+        //500ms to 7 days
+        switch(selectedUnits) {
+            case "Milliseconds":
+                ms = number;
+                break;
+            case "Seconds":
+                ms = number*1000;
+                break;
+            case "Minutes":
+                ms = number*1000*60;
+                break;
+            case "Hours":
+                ms = number*1000*60*60;
+                break;
+            case "Days":
+                ms = number*1000*60*60*24;
+                break;
+            default:
+                break;
+        }
+        if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
+        if (debug) Log.d(logTag, "in ms: " + String.valueOf(ms));
+        return ms;
+    }
+
+    /*
+    Function to take in the current number saved in the time bin size field, look at the selected units,
+    and convert the result to seconds, based on previous units
+     */
+    private int convertToSec(int number,String selectedUnits) {
+        int sec = 0;
+        //500ms to 7 days
+        switch(selectedUnits) {
+            case "Milliseconds":
+                sec = number/1000;
+                break;
+            case "Seconds":
+                sec = number;
+                break;
+            case "Minutes":
+                sec = number*60;
+                break;
+            case "Hours":
+                sec = number*60*60;
+                break;
+            case "Days":
+                sec = number*60*60*24;
+                break;
+            default:
+                break;
+        }
+        if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
+        if (debug) Log.d(logTag, "in sec: " + String.valueOf(sec));
+        return sec;
+    }
+
+    /*
+    Function to take in the current number saved in the time bin size field, look at the selected units,
+    and convert the result to minutes, based on previous units
+     */
+    private int convertToMin(int number,String selectedUnits) {
+        int min = 0;
+        //500ms to 7 days
+        switch(selectedUnits) {
+            case "Milliseconds":
+                min = number/(1000*60);
+                break;
+            case "Seconds":
+                min = number/60;
+                break;
+            case "Minutes":
+                min = number;
+                break;
+            case "Hours":
+                min = number*60;
+                break;
+            case "Days":
+                min = number*60*24;
+                break;
+            default:
+                break;
+        }
+        if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
+        if (debug) Log.d(logTag, "in sec: " + String.valueOf(min));
+        return min;
+    }
+
+    /*
+    Function to take in the current number saved in the time bin size field, look at the selected units,
+    and convert the result to hours, based on previous units
+     */
+    private int convertToHours(int number,String selectedUnits) {
+        int hours = 0;
+        //500ms to 7 days
+        switch(selectedUnits) {
+            case "Milliseconds":
+                hours = number/(1000*60*60);
+                break;
+            case "Seconds":
+                hours = number/(60*60);
+                break;
+            case "Minutes":
+                hours = number/60;
+                break;
+            case "Hours":
+                hours = number;
+                break;
+            case "Days":
+                hours = number*24;
+                break;
+            default:
+                break;
+        }
+        if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
+        if (debug) Log.d(logTag, "in sec: " + String.valueOf(hours));
+        return hours;
+    }
+
+    /*
+    Function to take in the current number saved in the time bin size field, look at the selected units,
+    and convert the result to days, based on previous units
+     */
+    private int convertToDays(int number,String selectedUnits) {
+        int days = 0;
+        //500ms to 7 days
+        switch(selectedUnits) {
+            case "Milliseconds":
+                days = number/(1000*60*60*24);
+                break;
+            case "Seconds":
+                days = number/(60*60*24);
+                break;
+            case "Minutes":
+                days = number/(60*24);
+                break;
+            case "Hours":
+                days = number/24;
+                break;
+            case "Days":
+                days = number;
+                break;
+            default:
+                break;
+        }
+        if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
+        if (debug) Log.d(logTag, "in sec: " + String.valueOf(days));
+        return days;
+    }
+
 
 
     /* Function to take in the root view of the dialog fragment and add an item selection
@@ -258,40 +417,64 @@ public class ConfigMenuDialog extends DialogFragment {
     onFocusChangeListener
      */
     private void addUnitSelectionListener(View view) {
-        Log.d(logTag, "add listener to unit selection");
         Spinner unitDropdown = (Spinner) view.findViewById(R.id.unit_dropdown);
         unitDropdown.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
                 //item selection handle here
+                View topLevelParent = getView(); //returns the root view for the fragment
+                timeBinSize = (EditText) topLevelParent.findViewById(R.id.bin_size_input);
                 String item_selected = parent.getItemAtPosition(pos).toString();
+                String enteredText = timeBinSize.getText().toString();
+                int enteredValue;
+                if (!enteredText.equals("")) {
+                    enteredValue = Integer.valueOf(enteredText);
+                } else {
+                   enteredValue = -1;
+                }
+                if (debug) Log.d(logTag, "obtained enteredValue: " + String.valueOf(enteredValue));
+                int convertedValue = -1;
                 //500ms to 7 days
                 switch(item_selected) {
                     case "Milliseconds":
+                        convertedValue = convertToMs(enteredValue,selected_units);
+                        selected_units = "Milliseconds";
                         minTimeBin = 500;
                         maxTimeBin = 7*24*60*60*1000; //week expressed in ms
                         break;
                     case "Seconds":
+                        convertedValue = convertToSec(enteredValue,selected_units);//call function with old selected_units
+                        selected_units = "Seconds";
                         minTimeBin = 1;
                         maxTimeBin = 7*24*60*60; //week in sec
                         break;
                     case "Minutes":
+                        convertedValue = convertToMin(enteredValue,selected_units);
+                        selected_units = "Minutes";
                         minTimeBin = 1;
                         maxTimeBin = 7*24*60; //week in min
                         break;
                     case "Hours":
+                        convertedValue = convertToHours(enteredValue,selected_units);
+                        selected_units = "Hours";
                         minTimeBin = 1;
                         maxTimeBin = 7*24; //week in hours
                         break;
                     case "Days":
+                        convertedValue = convertToDays(enteredValue,selected_units);
+                        selected_units = "Days";
                         minTimeBin = 1;
                         maxTimeBin = 7; //week in days
                         break;
                     default:
                         break;
                 }
-                View topLevelParent = getView(); //returns the root view for the fragment
-                timeBinSize = (EditText) topLevelParent.findViewById(R.id.bin_size_input);
+                if ((enteredValue != -1) && (convertedValue != -1)) {
+                    convertedValue = (convertedValue == 0) ? 1 : convertedValue;
+                    if (debug) Log.d(logTag, "value to put in time bin: " + String.valueOf(convertedValue));
+                    timeBinSize.setText(String.valueOf(convertedValue));
+                }
+
                 timeBinSize.setOnFocusChangeListener( new View.OnFocusChangeListener() {
                     @Override
                     public void onFocusChange(View v, boolean hasFocus) {
