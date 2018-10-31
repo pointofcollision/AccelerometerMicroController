@@ -1,14 +1,35 @@
 package ist.wirelessaccelerometer;
 
 public class BluetoothSensor {
-    public BluetoothSensor(String UUID) {
+    public BluetoothSensor(String UUID, String name, String address) {
         this.UUID = UUID;
+        this.name = name;
+        this.Address = address;
         this.data_state = 2; //starting state, off
         this.config_state = 0; //starting state, unconfigured.
     }
     private String config_states[] = {"Unconfigured","Configured"};
     private String data_states[] = {"Standby","Active","Off"};
     private String UUID;
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getAddress() {
+        return Address;
+    }
+
+    public void setAddress(String address) {
+        Address = address;
+    }
+
+    private String Address;
     private int sampleRate;
     private int binSize; //bin size, in ms
     private int timeBins; //number of time bins

@@ -54,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
     private Handler mHandler; // Our main handler that will receive callback notifications
     private ConnectedThread mConnectedThread; // bluetooth background worker thread to send and receive data
     private BluetoothSocket mBTSocket = null; // bi-directional client-to-client data path
-    private static final UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); // "random" unique identifier
+    private UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb"); // "random" unique identifier
     // #defines for identifying shared types between calling functions
     private final static int REQUEST_ENABLE_BT = 1; // used to identify adding bluetooth names
     private final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity {
         StartButton();
         StopButton();
         BluetoothScanButton();
-
+        TestButton();
 
 
         mBTAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -84,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
         connDevices = new ConnectedDevices();
         //testing purposes only
         String testUUID = "New sensor 1";
-        BluetoothSensor testSensor = new BluetoothSensor(testUUID);
+        BluetoothSensor testSensor = new BluetoothSensor(testUUID,testUUID,testUUID);
         connDevices.addSensor(testUUID,testSensor);
         addDropdownSensor(testUUID);
         //testing purposes only
@@ -94,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
                     String readMessage = null;
                     try {
                         readMessage = new String((byte[]) msg.obj, "UTF-8");
+                        if (debug) Log.d(logTag, "Message from datalogger: " + readMessage);
                     } catch (UnsupportedEncodingException e) {
                         e.printStackTrace();
                     }
@@ -101,10 +102,11 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 if(msg.what == CONNECTING_STATUS){
-                    if(msg.arg1 == 1)
-                        if (debug) Log.d(logTag, "connection_something message");
+                    if(msg.arg1 == 1) {
+                        if (debug) Log.d(logTag, "Connected to Device: " + (String)(msg.obj));
+                    }
                     else
-                        if (debug) Log.d(logTag, "other type of comm message");
+                        if (debug) Log.d(logTag, "Connection failed");
                 }
             }
         };
@@ -187,6 +189,30 @@ public class MainActivity extends AppCompatActivity {
     //    android.support.v4.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("fragmentID");
     //};
 
+
+    /*
+    Function to initialize test button callback
+     */
+    public void TestButton() {
+        Button test_btn = (Button) findViewById(R.id.testButton);
+        test_btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                pingThread(v);
+            }
+        });
+    }
+
+    /*
+    Function to send a ping message to the connected device
+     */
+    public void pingThread(View v){
+        if(mConnectedThread != null) { //First check to make sure thread created
+            mConnectedThread.write("hello");
+        }
+        else
+            if (debug) Log.d(logTag, "thread not started" );
+    }
     /*
     Function to list any paired bluetooth devices, makes toast currently
      */
@@ -195,11 +221,25 @@ public class MainActivity extends AppCompatActivity {
         if(mBTAdapter.isEnabled()) {
             // put it's one to the adapter
             for (BluetoothDevice device : mPairedDevices) {
-                if (debug) Log.d(logTag, "Device name: " + device.getName());
-                if (debug) Log.d(logTag, "Device address: " + device.getAddress());
+                //add device to dropdown menu
+                String name = device.getName();
+                String address = device.getAddress();
+                ParcelUuid[] deviceUUIDs = device.getUuids();
+                String UUID = deviceUUIDs[0].toString();
+                //TODO: check if device is in the connDevices class, if not, add it
+                BluetoothSensor newSensor = new BluetoothSensor(UUID,name,address);
+                try {
+                    BluetoothSensor thisSensor = connDevices.getSensor(name);
+                    if (debug) Log.d(logTag, "This sensor already in dropdown list, Device address: " + thisSensor.getAddress());
+                } catch (NullPointerException e){
+                    if (debug) Log.d(logTag, "This sensor isn't in dropdown list, adding : " );
+                    connDevices.updateSensor(name,newSensor);
+                }
+                updateDropDownSensor(name,name);
+                if (debug) Log.d(logTag, "Device name: " + name);
+                if (debug) Log.d(logTag, "Device address: " + address);
 
                 try {
-                    ParcelUuid[] deviceUUIDs = device.getUuids();
                     if (debug) Log.d(logTag, "Device UUID size: " + String.valueOf(device.getUuids().length));
                     if (debug) Log.d(logTag, "Device UUID: " + deviceUUIDs[0].toString());
                 } catch (NullPointerException e) {
@@ -208,7 +248,7 @@ public class MainActivity extends AppCompatActivity {
 
             }
 
-            Toast.makeText(getApplicationContext(), "Show Paired Devices", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(getApplicationContext(), "Show Paired Devices", Toast.LENGTH_SHORT).show();
         }
         else
             Toast.makeText(getApplicationContext(), "Bluetooth not on", Toast.LENGTH_SHORT).show();
@@ -262,8 +302,56 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(getApplicationContext(), "Device not configured",
                                 Toast.LENGTH_LONG).show();
                     } else {
-                        //TODO: Start communication function
                         if (debug) Log.d(logTag,"start streaming");
+                        //get device address
+                        final String address = activeSensor.getAddress();
+                        final String name = selectedSensor;
+
+                        new Thread()
+                        {
+
+                            public void run() {
+
+                                boolean fail = false;
+
+                                BluetoothDevice device = mBTAdapter.getRemoteDevice(address);
+
+                                try {
+                                    mBTSocket = createBluetoothSocket(device);
+                                    ParcelUuid uuids[] = device.getUuids();
+                                    UUID BTMODULEUUID_local = UUID.fromString(uuids[0].toString());
+
+                                    mBTAdapter.listenUsingRfcommWithServiceRecord("test", BTMODULEUUID_local);
+                                } catch (IOException e) {
+                                    fail = true;
+                                    if (debug) Log.d(logTag,"Socket creation failed");
+                                }
+                                // Establish the Bluetooth socket connection.
+                                try {
+                                    mBTSocket.connect();
+                                } catch (IOException e) {
+                                    try {
+                                        fail = true;
+                                        mBTSocket.close();
+                                        mHandler.obtainMessage(CONNECTING_STATUS, -1, -1)
+                                                .sendToTarget();
+                                    } catch (IOException e2) {
+                                        //insert code to deal with this
+                                        if (debug) Log.d(logTag,"Socket creation failed");
+                                    }
+                                }
+                                if(fail == false) {
+                                    mConnectedThread = new ConnectedThread(mBTSocket);
+                                    mConnectedThread.start();
+
+                                    mHandler.obtainMessage(CONNECTING_STATUS, 1, -1, name)
+                                            .sendToTarget();
+                                }
+                            }
+                        }.start();
+
+
+
                     }
                 } else {
                     Toast.makeText(getApplicationContext(), "No Device Selected",
@@ -286,6 +374,7 @@ public class MainActivity extends AppCompatActivity {
                 if (!selectedSensor.equals("Default")) {
                     BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
                     //TODO: Stop communication function
+                    mConnectedThread.cancel();
                     if (debug) Log.d(logTag,"stop streaming");
                 } else {
                     Toast.makeText(getApplicationContext(), "No Device Selected",
@@ -298,7 +387,7 @@ public class MainActivity extends AppCompatActivity {
     /*
     Function to add string UUID to the dropdown menu of selectable devices
      */
-    private void addDropdownSensor(String UUID) {
+    private void addDropdownSensor(String name) {
         device_dropdown = (Spinner) findViewById(R.id.spinner_modes);
 
         Adapter adapter = device_dropdown.getAdapter();
@@ -311,7 +400,7 @@ public class MainActivity extends AppCompatActivity {
         ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, options);
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         device_dropdown.setAdapter(spinnerAdapter);
-        spinnerAdapter.add(UUID);
+        spinnerAdapter.add(name);
         spinnerAdapter.notifyDataSetChanged();
 
         //this will add one value to the values currently stored on the dropdown menu
@@ -338,13 +427,20 @@ public class MainActivity extends AppCompatActivity {
         Adapter adapter = device_dropdown.getAdapter();
         int n = adapter.getCount();
         List<String> options = new ArrayList<String>(n);
+        boolean entry_found = false;
         for (int i = 0; i < n; i++) {
             String dropdownOption = (String) adapter.getItem(i);
             if (dropdownOption.equals(UUID_old)) {
                 options.add(UUID_new);
+                entry_found = true;
             } else {
                 options.add(dropdownOption);
             }
+        }
+        if (!entry_found) { //this allows update to always be used with listpairedDevices,
+            //even if some of the devices are in the list already.
+            addDropdownSensor(UUID_old);
+            return;
         }
         ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, options);
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -443,7 +539,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException {
-        return  device.createRfcommSocketToServiceRecord(BTMODULEUUID);
+        ParcelUuid uuids[] = device.getUuids();
+        UUID BTMODULEUUID_local = UUID.fromString(uuids[0].toString());
+        return  device.createRfcommSocketToServiceRecord(BTMODULEUUID_local);
         //creates secure outgoing connection with BT device using UUID
     }
 

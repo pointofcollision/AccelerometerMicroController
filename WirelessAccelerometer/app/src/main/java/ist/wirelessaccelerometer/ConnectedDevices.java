@@ -15,23 +15,23 @@ public class ConnectedDevices {
     public ConnectedDevices() {
         this.connectedDevices = new HashMap<String, BluetoothSensor>();
     }
-    public BluetoothSensor getSensor(String UUID){
+    public BluetoothSensor getSensor(String name){
         if (debug) Log.d(logTag, "obtained sensor from connDevices");
-        return this.connectedDevices.get(UUID);
+        return this.connectedDevices.get(name);
 
     }
 
-    public void addSensor(String UUID, BluetoothSensor dataLogger) {
-        this.connectedDevices.put(UUID,dataLogger);
+    public void addSensor(String name, BluetoothSensor dataLogger) {
+        this.connectedDevices.put(name,dataLogger);
     }
 
-    public void removeSensor(String UUID) {
-        this.connectedDevices.remove(UUID);
-        if (debug) Log.d(logTag, "removed sensor: " + UUID);
+    public void removeSensor(String name) {
+        this.connectedDevices.remove(name);
+        if (debug) Log.d(logTag, "removed sensor: " + name);
     }
 
-    public void updateSensor(String UUID, BluetoothSensor newSensor) {
-        this.connectedDevices.remove(UUID);
-        this.connectedDevices.put(UUID,newSensor);
+    public void updateSensor(String name, BluetoothSensor newSensor) {
+        this.connectedDevices.remove(name);
+        this.connectedDevices.put(name,newSensor);
     }
 }
