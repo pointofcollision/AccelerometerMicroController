@@ -37,7 +37,7 @@ public class ConfigMenuDialog extends DialogFragment {
     private EditText sampleRateInput;
     private EditText numTimeBins;
     private EditText timeBinSize;
-    private EditText UUIDChange;
+    private EditText NameChange;
     private Button submitButton;
     private int minSampleRate = 100;
     private int maxSampleRate = 3200;
@@ -82,8 +82,8 @@ public class ConfigMenuDialog extends DialogFragment {
         // Show soft keyboard automatically and request focus to field
         sampleRateInput = (EditText) view.findViewById(R.id.sample_rate_input);
         sampleRateInput.requestFocus();
-        UUIDChange = (EditText) view.findViewById(R.id.UUID_input);
-        UUIDChange.setText(args.getString("title"));
+        NameChange = (EditText) view.findViewById(R.id.UUID_input);
+        NameChange.setText(args.getString("title"));
         addSampleRateListener(view); //sample rate range restriction
         addNumTimeBinsListener(view); //(number of) time bins range restriction
 
@@ -200,7 +200,7 @@ public class ConfigMenuDialog extends DialogFragment {
                 timeBinSize = (EditText) parent.findViewById(R.id.bin_size_input);
                 timeBinSize.requestFocus();
                 sampleRateInput.requestFocus(); // just in case they didn't enter any values
-                UUIDChange = (EditText) parent.findViewById(R.id.UUID_input);
+                NameChange = (EditText) parent.findViewById(R.id.UUID_input);
 
                 Intent configIntent=new Intent();
                 configIntent.setAction(ACTION_CONFIG);
@@ -209,10 +209,9 @@ public class ConfigMenuDialog extends DialogFragment {
                 //convert time bin size from whatever units it is in to milliseconds.
                 int rawBinSize = Integer.valueOf(timeBinSize.getText().toString());
                 configIntent.putExtra("timeBinSize", convertToMsRaw(rawBinSize));
-                configIntent.putExtra("UUID",titleSaved);
-                if (debug) Log.d(logTag, "updated UUID: " + String.valueOf(UUIDChange.getText().toString()));
-                configIntent.putExtra("updated_UUID",UUIDChange.getText().toString());
-                //TODO: add new UUID field
+                configIntent.putExtra("name",titleSaved);
+                if (debug) Log.d(logTag, "updated name: " + String.valueOf(NameChange.getText().toString()));
+                configIntent.putExtra("updated_name",NameChange.getText().toString());
                 getActivity().sendBroadcast(configIntent);
                 fragmentTransaction.remove(fragment);
                 fragmentTransaction.commit();

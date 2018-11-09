@@ -10,6 +10,7 @@ import android.content.IntentFilter;
 import android.hardware.usb.UsbManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.ParcelUuid;
 import android.os.SystemClock;
@@ -33,6 +34,8 @@ import android.widget.SpinnerAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -46,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
     public static boolean debug = true; //flag to enable debug messages, enable for testing
     private String logTag="log_placeholder";
     private Spinner device_dropdown;
+    public boolean writeOn=false;
     public final static String ACTION_CONFIG="ist.wirelessaccelerometer.ACTION_CONFIG"; //intent tag
     BroadcastReceiver fragmentReceiver;
     ConnectedDevices connDevices;
@@ -95,6 +99,18 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         readMessage = new String((byte[]) msg.obj, "UTF-8");
                         if (debug) Log.d(logTag, "Message from datalogger: " + readMessage);
+                        Toast.makeText(getApplicationContext(), readMessage,
+                                Toast.LENGTH_LONG).show();
+                        //TODO: string parsing, writing data to file.
+                        //If receive some write command from datalogger, open write thread until
+                        //the termination command is received
+                        if (readMessage.equals("Write Start") && !writeOn) {
+                            writeOn=true;
+                            Thread writeThread = new Thread(writeToFile);
+                            writeThread.start();
+                        } else if (readMessage.equals("Write Stop")) {
+                            writeOn = false;
+                        }
                     } catch (UnsupportedEncodingException e) {
                         e.printStackTrace();
                     }
@@ -123,29 +139,58 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onReceive(Context context, Intent intent){
                 if (intent.getAction().equals(ACTION_CONFIG)){
-                    int sampleRate = intent.getIntExtra("sampleRate",0);
-                    int numTimeBins = intent.getIntExtra("numTimeBins",0);
-                    int timeBinSize = intent.getIntExtra("timeBinSize",0);
-                    String receivedUUID = intent.getStringExtra("UUID");
-                    String newUUID = intent.getStringExtra("updated_UUID");
-                    if (debug) Log.d(logTag, "receivedUUID: " + String.valueOf(receivedUUID));
+                    final int sampleRate = intent.getIntExtra("sampleRate",0);
+                    final int numTimeBins = intent.getIntExtra("numTimeBins",0);
+                    final int timeBinSize = intent.getIntExtra("timeBinSize",0);
+                    String receivedName = intent.getStringExtra("name");
+                    final String newName = intent.getStringExtra("updated_name");
+                    if (debug) Log.d(logTag, "receivedUUID: " + String.valueOf(receivedName));
                     if (debug) Log.d(logTag, "sample rate received: " + String.valueOf(sampleRate));
                     if (debug) Log.d(logTag, "num time bins received: " + String.valueOf(numTimeBins));
                     if (debug) Log.d(logTag, "time bin size received: " + String.valueOf(timeBinSize));
 
 
-                    BluetoothSensor currSensor = connDevices.getSensor(receivedUUID);
+                    //TODO: move this message send into a blocking thread so it waits to write until socket connected
+                    final BluetoothSensor currSensor = connDevices.getSensor(receivedName);
+
+                    new Thread()
+                    {
+
+                        public void run() {
+                            openCommunication(currSensor);
+                            int i = 0;
+                            while (i < 100) {
+                                    if (mConnectedThread != null) {
+                                        if (debug) Log.d(logTag, "connected to device, sending config data" );
+                                        mConnectedThread.write("ACTION_CONFIG\n");
+                                        mConnectedThread.write(String.valueOf(sampleRate)+"\n");
+                                        mConnectedThread.write(String.valueOf(numTimeBins)+"\n");
+                                        mConnectedThread.write(String.valueOf(timeBinSize)+"\n");
+                                        mConnectedThread.write(String.valueOf(newName)+"\n\r");
+                                        i = -1;
+                                        break;
+                                    }
+                                    SystemClock.sleep(100); //pause and wait for rest of data. Adjust this depending on your sending speed.
+                                 i = i + 1;
+                            }
+                            //if (i != -1) {
+                            //    if (debug) Log.d(logTag, "could not connect to device" );
+                            //    currSensor.setConfig_state(0);
+                            //}
+                        }
+                    }.start();
+
                     currSensor.setConfig_state(1); //is now configured
                     currSensor.setBinSize(timeBinSize);
                     currSensor.setSampleRate(sampleRate);
                     currSensor.setTimeBins(numTimeBins);
-                    if (!newUUID.equals(receivedUUID)) { //update UUID to new one
-                        connDevices.removeSensor(receivedUUID);
-                        currSensor.setUUID(newUUID);
-                        connDevices.addSensor(newUUID,currSensor);
-                        updateDropDownSensor(receivedUUID,newUUID); //also update dropdown list
-                    } else { //use previous UUID
-                        connDevices.updateSensor(receivedUUID,currSensor);
+                    if (!newName.equals(receivedName)) { //update Name to new one
+                        connDevices.removeSensor(receivedName);
+                        currSensor.setName(newName);
+                        connDevices.addSensor(newName,currSensor);
+                        updateDropDownSensor(receivedName,newName); //also update dropdown list
+                    } else { //use previous Name
+                        connDevices.updateSensor(receivedName,currSensor);
                     }
                     Toast.makeText(getApplicationContext(), "Configuration Updated",
                             Toast.LENGTH_LONG).show();
@@ -185,10 +230,52 @@ public class MainActivity extends AppCompatActivity {
 
         return super.onOptionsItemSelected(item);
     }
-    //public void onFragmentInteraction(Uri uri){
-    //    android.support.v4.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("fragmentID");
-    //};
 
+
+
+
+
+
+
+
+    /*
+    Function to be called to launch a separate thread to write data to file
+    this function will be called to write all pending time bins to a file
+     */
+    Runnable writeToFile= new Runnable() {
+        public void run() {
+            try
+            {
+                File outputfile1 = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/data_logger_files");
+                //when directorys are created, have to RESTART DEVICE before they show up (WARNING!!)
+                //create the directory or verify the directory exists for usbmanager
+                //outputfile1.setWritable(true);
+                //outputfile1.setReadable(true);
+                String device_name = "example";
+                File outputfilelow = new File(outputfile1, "data" + device_name + ".txt");
+                // outputfilelow.setReadable(true);
+                // outputfilelow.setWritable(true);
+                FileWriter fw = new FileWriter(outputfilelow, true);
+                boolean timeBinsLeft = true;
+                while(timeBinsLeft || writeOn) {
+                    String ex_line = "data x y z\n";
+                    fw.append(ex_line);
+                    if (debug) Log.d(logTag,"Wrote to file");
+                    //make it connected to the stop command
+                    timeBinsLeft = false;
+                }
+                if (debug)Log.d("enumerate", "data successfully written to file");
+                writeOn = false;
+                fw.close();
+            }
+            catch(
+                    IOException e
+                    )
+            {
+                Log.e("Exception", "File write failed: " + e.toString());
+            }
+        }
+    };
 
     /*
     Function to initialize test button callback
@@ -208,7 +295,7 @@ public class MainActivity extends AppCompatActivity {
      */
     public void pingThread(View v){
         if(mConnectedThread != null) { //First check to make sure thread created
-            mConnectedThread.write("hello");
+            mConnectedThread.write("hello\n\r");
         }
         else
             if (debug) Log.d(logTag, "thread not started" );
@@ -226,7 +313,6 @@ public class MainActivity extends AppCompatActivity {
                 String address = device.getAddress();
                 ParcelUuid[] deviceUUIDs = device.getUuids();
                 String UUID = deviceUUIDs[0].toString();
-                //TODO: check if device is in the connDevices class, if not, add it
                 BluetoothSensor newSensor = new BluetoothSensor(UUID,name,address);
                 try {
                     BluetoothSensor thisSensor = connDevices.getSensor(name);
@@ -292,73 +378,86 @@ public class MainActivity extends AppCompatActivity {
         start_btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (debug) Log.d(logTag,"attempt to start streaming");
                 device_dropdown = (Spinner) findViewById(R.id.spinner_modes);
                 String selectedSensor = device_dropdown.getSelectedItem().toString();
                 if (!selectedSensor.equals("Default")) {
                     BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
-                    int deviceConfigured = activeSensor.getConfig_state(); //check if configured
-                    if (deviceConfigured == 0) {
-                        Toast.makeText(getApplicationContext(), "Device not configured",
-                                Toast.LENGTH_LONG).show();
-                    } else {
-                        if (debug) Log.d(logTag,"start streaming");
-                        //get device address
-                        final String address = activeSensor.getAddress();
-                        final String name = selectedSensor;
-
-                        new Thread()
-                        {
-
-                            public void run() {
-
-                                boolean fail = false;
-
-                                BluetoothDevice device = mBTAdapter.getRemoteDevice(address);
-
-                                try {
-                                    mBTSocket = createBluetoothSocket(device);
-                                    ParcelUuid uuids[] = device.getUuids();
-                                    UUID BTMODULEUUID_local = UUID.fromString(uuids[0].toString());
-
-                                    mBTAdapter.listenUsingRfcommWithServiceRecord("test", BTMODULEUUID_local);
-                                } catch (IOException e) {
-                                    fail = true;
-                                    if (debug) Log.d(logTag,"Socket creation failed");
-                                }
-                                // Establish the Bluetooth socket connection.
-                                try {
-                                    mBTSocket.connect();
-                                } catch (IOException e) {
-                                    try {
-                                        fail = true;
-                                        mBTSocket.close();
-                                        mHandler.obtainMessage(CONNECTING_STATUS, -1, -1)
-                                                .sendToTarget();
-                                    } catch (IOException e2) {
-                                        //insert code to deal with this
-                                        if (debug) Log.d(logTag,"Socket creation failed");
-                                    }
-                                }
-                                if(fail == false) {
-                                    mConnectedThread = new ConnectedThread(mBTSocket);
-                                    mConnectedThread.start();
-
-                                    mHandler.obtainMessage(CONNECTING_STATUS, 1, -1, name)
-                                            .sendToTarget();
-                                }
-                            }
-                        }.start();
-
-
-
-                    }
+                openCommunication(activeSensor);
                 } else {
-                    Toast.makeText(getApplicationContext(), "No Device Selected",
-                            Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), "No Device Selected", Toast.LENGTH_LONG).show();
                 }
             }
         });
+    }
+
+    /*
+    Function to launch communication with the submitted data logger.
+     */
+    public void openCommunication(BluetoothSensor activeSensor) {
+        if (debug) Log.d(logTag,"attempt to start streaming");
+
+            int deviceConfigured = activeSensor.getConfig_state(); //check if configured
+            if (deviceConfigured == 0) {
+                if (debug) Log.d(logTag,"Device not configured");
+                Toast.makeText(getApplicationContext(),"Device not configured" ,
+                        Toast.LENGTH_LONG).show();
+            } else {
+                if (debug) Log.d(logTag,"start streaming");
+                //get device address
+                final String address = activeSensor.getAddress();
+                final String name = activeSensor.getName();
+
+                new Thread()
+                {
+
+                    public void run() {
+
+                        boolean fail = false;
+                        BluetoothDevice device;
+                        try {
+                            device = mBTAdapter.getRemoteDevice(address);
+                        }
+                        catch (IllegalArgumentException e) {
+                            if (debug) Log.d(logTag,"Device address invalid, returning");
+                            return; //device is not recognized anyway
+                        }
+                        try {
+                            mBTSocket = createBluetoothSocket(device);
+                            ParcelUuid uuids[] = device.getUuids();
+                            UUID BTMODULEUUID_local = UUID.fromString(uuids[0].toString());
+
+                            mBTAdapter.listenUsingRfcommWithServiceRecord("test", BTMODULEUUID_local);
+                        } catch (IOException e) {
+                            fail = true;
+                            if (debug) Log.d(logTag,"Socket creation failed");
+                        }
+                        // Establish the Bluetooth socket connection.
+                        try {
+                            mBTSocket.connect();
+                        } catch (IOException e) {
+                            try {
+                                fail = true;
+                                mBTSocket.close();
+                                mHandler.obtainMessage(CONNECTING_STATUS, -1, -1)
+                                        .sendToTarget();
+                            } catch (IOException e2) {
+                                //insert code to deal with this
+                                if (debug) Log.d(logTag,"Socket creation failed");
+                            }
+                        }
+                        if(fail == false) {
+                            mConnectedThread = new ConnectedThread(mBTSocket);
+                            mConnectedThread.start();
+
+                            mHandler.obtainMessage(CONNECTING_STATUS, 1, -1, name)
+                                    .sendToTarget();
+                        }
+                    }
+                }.start();
+
+
+
+            }
     }
     /*
     Function to initialize stop button callback
@@ -373,8 +472,9 @@ public class MainActivity extends AppCompatActivity {
                 String selectedSensor = device_dropdown.getSelectedItem().toString();
                 if (!selectedSensor.equals("Default")) {
                     BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
-                    //TODO: Stop communication function
-                    mConnectedThread.cancel();
+                    if (mConnectedThread!= null) {
+                        mConnectedThread.cancel();
+                    }
                     if (debug) Log.d(logTag,"stop streaming");
                 } else {
                     Toast.makeText(getApplicationContext(), "No Device Selected",
@@ -474,22 +574,24 @@ public class MainActivity extends AppCompatActivity {
     Function to discover attached bluetooth devices
      */
     private void discover(View view){
+        Button scanBtn = (Button) findViewById(R.id.bluetooth_scan_button);
         // Check if the device is already discovering
         if (debug) Log.d(logTag,"discover launched");
         listPairedDevices(view);
         if(mBTAdapter.isDiscovering()){
+            scanBtn.setText("Scan for devices");
             mBTAdapter.cancelDiscovery();
             Toast.makeText(getApplicationContext(),"Discovery stopped",Toast.LENGTH_SHORT).show();
         }
         else{
             if(mBTAdapter.isEnabled()) {
-
+                scanBtn.setText("Stop device scanning");
                 mBTAdapter.startDiscovery();
-                Toast.makeText(getApplicationContext(), "Discovery started", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getApplicationContext(), "Discovery started", Toast.LENGTH_LONG).show();
                 registerReceiver(blReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND));
             }
             else{
-                Toast.makeText(getApplicationContext(), "Bluetooth not on", Toast.LENGTH_SHORT).show();
+                //Toast.makeText(getApplicationContext(), "Bluetooth not on", Toast.LENGTH_LONG).show();
                 bluetoothOn(view);
             }
         }
@@ -577,11 +679,12 @@ public class MainActivity extends AppCompatActivity {
                     // Read from the InputStream
                     bytes = mmInStream.available();
                     if(bytes != 0) {
-                        SystemClock.sleep(100); //pause and wait for rest of data. Adjust this depending on your sending speed.
+                        SystemClock.sleep(50); //pause and wait for rest of data. Adjust this depending on your sending speed.
                         bytes = mmInStream.available(); // how many bytes are ready to be read?
                         bytes = mmInStream.read(buffer, 0, bytes); // record how many bytes we actually read
                         mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer)
                                 .sendToTarget(); // Send the obtained bytes to the UI activity
+                        buffer = new byte[1024];
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
