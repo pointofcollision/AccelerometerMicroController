@@ -15,6 +15,8 @@
     <string name="default_units">Select units</string>
     <string name="sample_rate_bounds">100-3200 sps</string>
     <string name="bin_size_bounds">500ms - 7 days</string>
+    <string name="connection_indicator_true">Connected</string>
+    <string name="connection_indicator_false">Not Connected</string>
     <string name="num_bin_bounds">1-10000 time bins</string>
     <string-array name="connected_devices">
         <item>Default</item>

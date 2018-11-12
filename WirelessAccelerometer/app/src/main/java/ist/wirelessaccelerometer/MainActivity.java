@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Color;
 import android.hardware.usb.UsbManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -87,11 +88,12 @@ public class MainActivity extends AppCompatActivity {
         bluetoothOn(getCurrentFocus());
         connDevices = new ConnectedDevices();
         //testing purposes only
-        String testUUID = "New sensor 1";
-        BluetoothSensor testSensor = new BluetoothSensor(testUUID,testUUID,testUUID);
-        connDevices.addSensor(testUUID,testSensor);
-        addDropdownSensor(testUUID);
+        //String testUUID = "New sensor 1";
+        //BluetoothSensor testSensor = new BluetoothSensor(testUUID,testUUID,testUUID);
+        //connDevices.addSensor(testUUID,testSensor);
+        //addDropdownSensor(testUUID);
         //testing purposes only
+
         mHandler = new Handler(){
             public void handleMessage(android.os.Message msg){
                 if(msg.what == MESSAGE_READ){
@@ -172,14 +174,15 @@ public class MainActivity extends AppCompatActivity {
                                     }
                                     SystemClock.sleep(100); //pause and wait for rest of data. Adjust this depending on your sending speed.
                                  i = i + 1;
+
                             }
+                            mConnectedThread.cancel();
                             //if (i != -1) {
                             //    if (debug) Log.d(logTag, "could not connect to device" );
                             //    currSensor.setConfig_state(0);
                             //}
                         }
                     }.start();
-
                     currSensor.setConfig_state(1); //is now configured
                     currSensor.setBinSize(timeBinSize);
                     currSensor.setSampleRate(sampleRate);
@@ -352,15 +355,19 @@ public class MainActivity extends AppCompatActivity {
                 Button config_btn = (Button) findViewById(R.id.config_button);
                 Button start_btn = (Button) findViewById(R.id.start_button);
                 Button stop_btn = (Button) findViewById(R.id.stop_button);
+                TextView connection_indicator = (TextView) findViewById(R.id.connection_indicator);
                 if (item_selected.equals("Default")) {
                     config_btn.setVisibility(View.INVISIBLE); //no sensor selected
                     start_btn.setVisibility(View.INVISIBLE);
                     stop_btn.setVisibility(View.INVISIBLE);
+                    connection_indicator.setVisibility((View.INVISIBLE));
                 }
                 else {
                     config_btn.setVisibility(View.VISIBLE); //sensor selected, allow to configure
                     start_btn.setVisibility(View.VISIBLE);
                     stop_btn.setVisibility(View.VISIBLE);
+                    connection_indicator.setVisibility((View.VISIBLE));
+                    updateConnectionIndicator(view);
                 }
             }
 
@@ -369,6 +376,39 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
+    /*
+    Function to update the connection indicator to reflect whether or not the selected device is connected
+     */
+    public void updateConnectionIndicator(View v) {
+        int red = Color.parseColor("#FF0000");
+        int green = Color.parseColor("#17ef01");
+        int black = Color.parseColor("#000000");
+        TextView connection_indicator = (TextView) findViewById(R.id.connection_indicator);
+        device_dropdown = (Spinner) findViewById(R.id.spinner_modes);
+        String selectedSensor = device_dropdown.getSelectedItem().toString();
+        if (!selectedSensor.equals("Default")) {
+            BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
+            if (mConnectedThread!= null) {
+                if (mBTSocket != null) {
+                    BluetoothDevice connDevice = mBTSocket.getRemoteDevice();
+                    if (connDevice.getName() == activeSensor.getName()) {
+                        if (debug) Log.d(logTag,"device: " + connDevice.getName() + " is connected");
+
+                        connection_indicator.setBackgroundColor(green);
+                        connection_indicator.setText(R.string.connection_indicator_true);
+                        connection_indicator.setTextColor(black);
+                        return;
+                    }
+                }
+            }
+        }
+        if (debug) Log.d(logTag,"device is not connected, setting red");
+        connection_indicator.setBackgroundColor(red);
+        connection_indicator.setText(R.string.connection_indicator_false);
+        connection_indicator.setTextColor(black);
+    }
+
 
     /*
     Function to initialize start button callback
@@ -383,6 +423,7 @@ public class MainActivity extends AppCompatActivity {
                 if (!selectedSensor.equals("Default")) {
                     BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
                 openCommunication(activeSensor);
+                updateConnectionIndicator(v);
                 } else {
                     Toast.makeText(getApplicationContext(), "No Device Selected", Toast.LENGTH_LONG).show();
                 }
@@ -474,6 +515,7 @@ public class MainActivity extends AppCompatActivity {
                     BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
                     if (mConnectedThread!= null) {
                         mConnectedThread.cancel();
+                        updateConnectionIndicator(v);
                     }
                     if (debug) Log.d(logTag,"stop streaming");
                 } else {
