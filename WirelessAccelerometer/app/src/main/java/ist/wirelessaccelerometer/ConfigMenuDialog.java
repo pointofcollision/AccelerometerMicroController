@@ -19,6 +19,7 @@ import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.TextView;
 
 import static ist.wirelessaccelerometer.MainActivity.ACTION_CONFIG;
 import static ist.wirelessaccelerometer.MainActivity.debug;
@@ -34,7 +35,7 @@ import static ist.wirelessaccelerometer.MainActivity.debug;
  */
 public class ConfigMenuDialog extends DialogFragment {
 
-    private EditText sampleRateInput;
+    private Spinner sampleRateInput;
     private EditText numTimeBins;
     private EditText timeBinSize;
     private EditText NameChange;
@@ -80,11 +81,10 @@ public class ConfigMenuDialog extends DialogFragment {
         String title = args.getString("title", "Enter Name");
         getDialog().setTitle(title);
         // Show soft keyboard automatically and request focus to field
-        sampleRateInput = (EditText) view.findViewById(R.id.sample_rate_input);
+        sampleRateInput = (Spinner) view.findViewById(R.id.sample_rate_input);
         sampleRateInput.requestFocus();
         NameChange = (EditText) view.findViewById(R.id.UUID_input);
         NameChange.setText(args.getString("title"));
-        addSampleRateListener(view); //sample rate range restriction
         addNumTimeBinsListener(view); //(number of) time bins range restriction
 
         int configState = args.getInt("config_state");
@@ -113,43 +113,33 @@ public class ConfigMenuDialog extends DialogFragment {
     }
 
     /*
+    Function to find the index in a spinner where a string occurs, assuming that it is in the spinner.
+    Does not check for errors
+     */
+    private int getIndex(Spinner spinner, String myString){
+
+        int index = 0;
+
+        for (int i=0;i<spinner.getCount();i++){
+            if (spinner.getItemAtPosition(i).equals(myString)){
+                index = i;
+            }
+        }
+        return index;
+    }
+
+    /*
     Function to prefill the editText fields with the sensor configuration data stored for it,
     which the dialog fragment will have received in the form of a bundle
      */
     private void prefillValues(View view, Bundle args) {
         timeBinSize = (EditText) view.findViewById(R.id.bin_size_input);
         numTimeBins = (EditText) view.findViewById(R.id.num_time_bins_input);
-        sampleRateInput = (EditText) view.findViewById(R.id.sample_rate_input);
+        sampleRateInput = (Spinner) view.findViewById(R.id.sample_rate_input);
         numTimeBins.setText(String.valueOf(args.getInt("sensor_num_time_bins")));
-        sampleRateInput.setText(String.valueOf(args.getInt("sensor_sample_rate")));
+        String sample_rate = String.valueOf(args.getInt("sensor_sample_rate")) + "Hz";
+        sampleRateInput.setSelection(getIndex(sampleRateInput, sample_rate));
         timeBinSize.setText(String.valueOf(args.getInt("sensor_bin_size")));
-    }
-    /*
-    Function to take in the root view of the dialog fragment and add a focus change
-    listener to the "sample_rate_input" view, limiting allowed values to a range when user
-    clicks off the focused area
-     */
-    private void addSampleRateListener(View view) {
-        sampleRateInput = (EditText) view.findViewById(R.id.sample_rate_input);
-        sampleRateInput.setOnFocusChangeListener( new View.OnFocusChangeListener() {
-            @Override
-            public void onFocusChange(View v, boolean hasFocus) {
-                if (!hasFocus) {
-                    //view lost focus
-                    String currText = sampleRateInput.getText().toString();
-                    try {
-                        int currVal = Integer.parseInt(currText);
-                        if (currVal < minSampleRate) {
-                            currVal = minSampleRate;
-                        } else if (currVal > maxSampleRate) {
-                            currVal = maxSampleRate;
-                        }
-                        sampleRateInput.setText(String.valueOf(currVal));
-                    } catch (NumberFormatException nfe) {
-                        sampleRateInput.setText(String.valueOf(minSampleRate));
-                    }
-                }
-            }});
     }
 
     /*
@@ -185,7 +175,7 @@ public class ConfigMenuDialog extends DialogFragment {
     private void addSubmitButtonListener(View view,String title) {
         submitButton = (Button) view.findViewById(R.id.button_submit);
         final String titleSaved = title;
-        if (debug) Log.d(logTag, "receivedUUID: " + String.valueOf(title));
+        //if (debug) Log.d(logTag, "receivedUUID: " + String.valueOf(title));
         submitButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -193,8 +183,6 @@ public class ConfigMenuDialog extends DialogFragment {
                 FragmentManager fragmentmanager = getFragmentManager();
                 FragmentTransaction fragmentTransaction= fragmentmanager.beginTransaction();
                 View parent = getView();
-                sampleRateInput = (EditText) parent.findViewById(R.id.sample_rate_input);
-                sampleRateInput.requestFocus();
                 numTimeBins = (EditText) parent.findViewById(R.id.num_time_bins_input);
                 numTimeBins.requestFocus();
                 timeBinSize = (EditText) parent.findViewById(R.id.bin_size_input);
@@ -204,13 +192,15 @@ public class ConfigMenuDialog extends DialogFragment {
 
                 Intent configIntent=new Intent();
                 configIntent.setAction(ACTION_CONFIG);
-                configIntent.putExtra("sampleRate",Integer.valueOf(sampleRateInput.getText().toString()));
+                String selectedSampleRate = sampleRateInput.getSelectedItem().toString();
+                String sampleRateTrimmed = selectedSampleRate.substring(0,selectedSampleRate.length() - 2);
+                configIntent.putExtra("sampleRate",Integer.valueOf(sampleRateTrimmed));
                 configIntent.putExtra("numTimeBins", Integer.valueOf(numTimeBins.getText().toString()));
                 //convert time bin size from whatever units it is in to milliseconds.
                 int rawBinSize = Integer.valueOf(timeBinSize.getText().toString());
                 configIntent.putExtra("timeBinSize", convertToMsRaw(rawBinSize));
                 configIntent.putExtra("name",titleSaved);
-                if (debug) Log.d(logTag, "updated name: " + String.valueOf(NameChange.getText().toString()));
+                //if (debug) Log.d(logTag, "updated name: " + String.valueOf(NameChange.getText().toString()));
                 configIntent.putExtra("updated_name",NameChange.getText().toString());
                 getActivity().sendBroadcast(configIntent);
                 fragmentTransaction.remove(fragment);
@@ -247,8 +237,8 @@ public class ConfigMenuDialog extends DialogFragment {
             default:
                 break;
         }
-        if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
-        if (debug) Log.d(logTag, "in ms: " + String.valueOf(ms));
+        //if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
+        //if (debug) Log.d(logTag, "in ms: " + String.valueOf(ms));
         return ms;
     }
 
@@ -278,8 +268,8 @@ public class ConfigMenuDialog extends DialogFragment {
             default:
                 break;
         }
-        if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
-        if (debug) Log.d(logTag, "in ms: " + String.valueOf(ms));
+        //if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
+        //if (debug) Log.d(logTag, "in ms: " + String.valueOf(ms));
         return ms;
     }
 
@@ -309,8 +299,8 @@ public class ConfigMenuDialog extends DialogFragment {
             default:
                 break;
         }
-        if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
-        if (debug) Log.d(logTag, "in sec: " + String.valueOf(sec));
+        //if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
+        //if (debug) Log.d(logTag, "in sec: " + String.valueOf(sec));
         return sec;
     }
 
@@ -340,8 +330,8 @@ public class ConfigMenuDialog extends DialogFragment {
             default:
                 break;
         }
-        if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
-        if (debug) Log.d(logTag, "in sec: " + String.valueOf(min));
+        //if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
+        //if (debug) Log.d(logTag, "in sec: " + String.valueOf(min));
         return min;
     }
 
@@ -371,8 +361,8 @@ public class ConfigMenuDialog extends DialogFragment {
             default:
                 break;
         }
-        if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
-        if (debug) Log.d(logTag, "in sec: " + String.valueOf(hours));
+        //if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
+        //if (debug) Log.d(logTag, "in sec: " + String.valueOf(hours));
         return hours;
     }
 
@@ -402,8 +392,8 @@ public class ConfigMenuDialog extends DialogFragment {
             default:
                 break;
         }
-        if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
-        if (debug) Log.d(logTag, "in sec: " + String.valueOf(days));
+        //if (debug) Log.d(logTag, "time bin size to convert: " + String.valueOf(number));
+        //if (debug) Log.d(logTag, "in sec: " + String.valueOf(days));
         return days;
     }
 
@@ -431,7 +421,7 @@ public class ConfigMenuDialog extends DialogFragment {
                 } else {
                    enteredValue = -1;
                 }
-                if (debug) Log.d(logTag, "obtained enteredValue: " + String.valueOf(enteredValue));
+                //if (debug) Log.d(logTag, "obtained enteredValue: " + String.valueOf(enteredValue));
                 int convertedValue = -1;
                 //500ms to 7 days
                 switch(item_selected) {
@@ -470,7 +460,7 @@ public class ConfigMenuDialog extends DialogFragment {
                 }
                 if ((enteredValue != -1) && (convertedValue != -1)) {
                     convertedValue = (convertedValue == 0) ? 1 : convertedValue;
-                    if (debug) Log.d(logTag, "value to put in time bin: " + String.valueOf(convertedValue));
+                    //if (debug) Log.d(logTag, "value to put in time bin: " + String.valueOf(convertedValue));
                     timeBinSize.setText(String.valueOf(convertedValue));
                 }
 

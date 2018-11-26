@@ -41,7 +41,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -52,14 +54,16 @@ public class MainActivity extends AppCompatActivity {
     private Spinner device_dropdown;
     public boolean writeOn=false;
     public final static String ACTION_CONFIG="ist.wirelessaccelerometer.ACTION_CONFIG"; //intent tag
+    public final static String ACTION_CONNECTED="ist.wirelessaccelerometer.ACTION_CONNECTED"; //intent tag
+    public final static String ACTION_DISCONNECTED="ist.wirelessaccelerometer.ACTION_DISCONNECTED"; //intent tag
     BroadcastReceiver fragmentReceiver;
+    BroadcastReceiver disconnectReceiver;
     ConnectedDevices connDevices;
     private BluetoothAdapter mBTAdapter;
     private Set<BluetoothDevice> mPairedDevices;
     private Handler mHandler; // Our main handler that will receive callback notifications
     private ConnectedThread mConnectedThread; // bluetooth background worker thread to send and receive data
     private BluetoothSocket mBTSocket = null; // bi-directional client-to-client data path
-    private UUID BTMODULEUUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb"); // "random" unique identifier
     // #defines for identifying shared types between calling functions
     private final static int REQUEST_ENABLE_BT = 1; // used to identify adding bluetooth names
     private final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
@@ -81,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
         StopButton();
         BluetoothScanButton();
         TestButton();
-
+        StartStreamButton();
 
         mBTAdapter = BluetoothAdapter.getDefaultAdapter();
         /*START BLUETOOTH SETUP */
@@ -122,6 +126,9 @@ public class MainActivity extends AppCompatActivity {
                 if(msg.what == CONNECTING_STATUS){
                     if(msg.arg1 == 1) {
                         if (debug) Log.d(logTag, "Connected to Device: " + (String)(msg.obj));
+                        Intent configIntent=new Intent();
+                        configIntent.setAction(ACTION_CONNECTED);
+                        sendBroadcast(configIntent);
                     }
                     else
                         if (debug) Log.d(logTag, "Connection failed");
@@ -137,6 +144,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         IntentFilter intentReceiver= new IntentFilter(ACTION_CONFIG);
+        intentReceiver.addAction(ACTION_CONNECTED);
+        intentReceiver.addAction(ACTION_DISCONNECTED);
         fragmentReceiver= new BroadcastReceiver(){
             @Override
             public void onReceive(Context context, Intent intent){
@@ -146,10 +155,10 @@ public class MainActivity extends AppCompatActivity {
                     final int timeBinSize = intent.getIntExtra("timeBinSize",0);
                     String receivedName = intent.getStringExtra("name");
                     final String newName = intent.getStringExtra("updated_name");
-                    if (debug) Log.d(logTag, "receivedUUID: " + String.valueOf(receivedName));
-                    if (debug) Log.d(logTag, "sample rate received: " + String.valueOf(sampleRate));
-                    if (debug) Log.d(logTag, "num time bins received: " + String.valueOf(numTimeBins));
-                    if (debug) Log.d(logTag, "time bin size received: " + String.valueOf(timeBinSize));
+                    //if (debug) Log.d(logTag, "receivedUUID: " + String.valueOf(receivedName));
+                    //if (debug) Log.d(logTag, "sample rate received: " + String.valueOf(sampleRate));
+                    //if (debug) Log.d(logTag, "num time bins received: " + String.valueOf(numTimeBins));
+                    //if (debug) Log.d(logTag, "time bin size received: " + String.valueOf(timeBinSize));
 
 
                     //TODO: move this message send into a blocking thread so it waits to write until socket connected
@@ -159,7 +168,19 @@ public class MainActivity extends AppCompatActivity {
                     {
 
                         public void run() {
-                            openCommunication(currSensor);
+                                boolean thread_started = false;
+                                if (mConnectedThread!= null && mConnectedThread.active()) {
+                                    if (mBTSocket != null) {
+                                        BluetoothDevice connDevice = mBTSocket.getRemoteDevice();
+                                        if (connDevice.getName().equals(currSensor.getName())) {
+                                            //device connected, don't need to restart thread
+                                            if (debug) Log.d(logTag, "conn_device called from active" );
+                                            thread_started = true;
+
+                                        }
+                                    }
+                                }
+                            if (!thread_started) openCommunication(currSensor);
                             int i = 0;
                             while (i < 100) {
                                     if (mConnectedThread != null) {
@@ -168,7 +189,11 @@ public class MainActivity extends AppCompatActivity {
                                         mConnectedThread.write(String.valueOf(sampleRate)+"\n");
                                         mConnectedThread.write(String.valueOf(numTimeBins)+"\n");
                                         mConnectedThread.write(String.valueOf(timeBinSize)+"\n");
-                                        mConnectedThread.write(String.valueOf(newName)+"\n\r");
+                                        mConnectedThread.write(String.valueOf(newName)+"\n");
+                                        String currentDateTimeString = DateFormat.getDateTimeInstance().format(new Date());
+                                        if (debug) Log.d(logTag, "date and time: " + currentDateTimeString);
+                                        mConnectedThread.write(currentDateTimeString +"\n\r");
+
                                         i = -1;
                                         break;
                                     }
@@ -176,9 +201,13 @@ public class MainActivity extends AppCompatActivity {
                                  i = i + 1;
 
                             }
-                            mConnectedThread.cancel();
+                            if (mConnectedThread!= null && !thread_started) {
+                                mConnectedThread.cancel();
+                                updateConnectionIndicator(findViewById(android.R.id.content));
+                                if (debug) Log.d(logTag, "need to cancel thread" );
+                            }
                             //if (i != -1) {
-                            //    if (debug) Log.d(logTag, "could not connect to device" );
+                            if (debug) Log.d(logTag, "Device config thread finished" );
                             //    currSensor.setConfig_state(0);
                             //}
                         }
@@ -197,10 +226,30 @@ public class MainActivity extends AppCompatActivity {
                     }
                     Toast.makeText(getApplicationContext(), "Configuration Updated",
                             Toast.LENGTH_LONG).show();
+                } else if (intent.getAction().equals(ACTION_CONNECTED)){
+                    if (debug) Log.d(logTag, "ACTION_CONNECTED received");
+                    updateConnectionIndicator(findViewById(android.R.id.content));
+                } else if (intent.getAction().equals(ACTION_DISCONNECTED)) {
+                    if (debug) Log.d(logTag, "ACTION_DISCONNECTED received");
+                    updateConnectionIndicator(findViewById(android.R.id.content));
                 }
             }
         };
         this.registerReceiver(fragmentReceiver,intentReceiver);
+
+        IntentFilter deviceDisconnect= new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+        disconnectReceiver= new BroadcastReceiver(){
+            @Override
+            public void onReceive(Context context, Intent intent){
+                if (intent.getAction().equals(BluetoothDevice.ACTION_ACL_DISCONNECTED)){
+                    if (debug) Log.d(logTag, "ACTION_ACL_DISCONNECTED received");
+                    if (mConnectedThread!= null && mConnectedThread.active()) {
+                        mConnectedThread.cancel();
+                    }
+                }
+            }
+        };
+        this.registerReceiver(disconnectReceiver,deviceDisconnect);
     }
 
     protected void onPause() {
@@ -209,6 +258,7 @@ public class MainActivity extends AppCompatActivity {
         //result in extra receivers running which messes up the graph. Functional with this change
         super.onPause();
         unregisterReceiver(fragmentReceiver);
+        unregisterReceiver(disconnectReceiver);
 
     }
 
@@ -297,7 +347,7 @@ public class MainActivity extends AppCompatActivity {
     Function to send a ping message to the connected device
      */
     public void pingThread(View v){
-        if(mConnectedThread != null) { //First check to make sure thread created
+        if(mConnectedThread!= null && mConnectedThread.active()) { //First check to make sure thread created
             mConnectedThread.write("hello\n\r");
         }
         else
@@ -389,10 +439,10 @@ public class MainActivity extends AppCompatActivity {
         String selectedSensor = device_dropdown.getSelectedItem().toString();
         if (!selectedSensor.equals("Default")) {
             BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
-            if (mConnectedThread!= null) {
+            if (mConnectedThread!= null && mConnectedThread.active()) {
                 if (mBTSocket != null) {
                     BluetoothDevice connDevice = mBTSocket.getRemoteDevice();
-                    if (connDevice.getName() == activeSensor.getName()) {
+                    if (connDevice.getName().equals(activeSensor.getName())) {
                         if (debug) Log.d(logTag,"device: " + connDevice.getName() + " is connected");
 
                         connection_indicator.setBackgroundColor(green);
@@ -400,8 +450,12 @@ public class MainActivity extends AppCompatActivity {
                         connection_indicator.setTextColor(black);
                         return;
                     }
+                    if (debug) Log.d(logTag,"device: " + connDevice.getName() + " != " + activeSensor.getName());
+                    if (debug) Log.d(logTag,"wrong sensor");
                 }
+                if (debug) Log.d(logTag,"socket null");
             }
+            if (debug) Log.d(logTag,"thread null");
         }
         if (debug) Log.d(logTag,"device is not connected, setting red");
         connection_indicator.setBackgroundColor(red);
@@ -422,8 +476,38 @@ public class MainActivity extends AppCompatActivity {
                 String selectedSensor = device_dropdown.getSelectedItem().toString();
                 if (!selectedSensor.equals("Default")) {
                     BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
-                openCommunication(activeSensor);
-                updateConnectionIndicator(v);
+                    openCommunication(activeSensor);
+                } else {
+                    Toast.makeText(getApplicationContext(), "No Device Selected", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+    }
+
+    /*
+    Function to initialize start button callback
+     */
+    public void StartStreamButton() {
+        Button start_btn = (Button) findViewById(R.id.start_stream_button);
+        start_btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                device_dropdown = (Spinner) findViewById(R.id.spinner_modes);
+                String selectedSensor = device_dropdown.getSelectedItem().toString();
+                if (!selectedSensor.equals("Default")) {
+                    BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
+                    if (mConnectedThread!= null && mConnectedThread.active()) {
+                        if (mBTSocket != null) {
+                            BluetoothDevice connDevice = mBTSocket.getRemoteDevice();
+                            if (connDevice.getName().equals(activeSensor.getName())) {
+                                if (debug) Log.d(logTag,"send start stream command");
+                                mConnectedThread.write("ACTION_START_STREAM\n\r");
+                            }
+                            if (debug) Log.d(logTag,"device: " + connDevice.getName() + " != " + activeSensor.getName());
+                        }
+                    }
+                    Toast.makeText(getApplicationContext(), "Device Not Connected", Toast.LENGTH_LONG).show();
+                    //send start stream command
                 } else {
                     Toast.makeText(getApplicationContext(), "No Device Selected", Toast.LENGTH_LONG).show();
                 }
@@ -486,7 +570,7 @@ public class MainActivity extends AppCompatActivity {
                                 if (debug) Log.d(logTag,"Socket creation failed");
                             }
                         }
-                        if(fail == false) {
+                        if(!fail) {
                             mConnectedThread = new ConnectedThread(mBTSocket);
                             mConnectedThread.start();
 
@@ -513,7 +597,9 @@ public class MainActivity extends AppCompatActivity {
                 String selectedSensor = device_dropdown.getSelectedItem().toString();
                 if (!selectedSensor.equals("Default")) {
                     BluetoothSensor activeSensor = connDevices.getSensor(selectedSensor);
-                    if (mConnectedThread!= null) {
+                    if (mConnectedThread!= null && mConnectedThread.active()) {
+                        if (debug) Log.d(logTag,"thread stopped");
+                        mConnectedThread.write("ACTION_STOP_STREAM\n\r");
                         mConnectedThread.cancel();
                         updateConnectionIndicator(v);
                     }
@@ -747,8 +833,15 @@ public class MainActivity extends AppCompatActivity {
         /* Call this from the main activity to shutdown the connection */
         public void cancel() {
             try {
+                if (debug) Log.d(logTag,"Cancel thread");
                 mmSocket.close();
+                Intent configIntent=new Intent();
+                configIntent.setAction(ACTION_DISCONNECTED);
+                sendBroadcast(configIntent);
             } catch (IOException e) { }
+        }
+        public boolean active() {
+            return mmSocket.isConnected();
         }
     }
 }

@@ -13,7 +13,7 @@
     <string name="sample_rate_text">Sample rate (samples/second)</string>
     <string name="default_dropdown_connected_devices">Select device to configure</string>
     <string name="default_units">Select units</string>
-    <string name="sample_rate_bounds">100-3200 sps</string>
+    <string name="sample_rate_bounds">Select sample rate</string>
     <string name="bin_size_bounds">500ms - 7 days</string>
     <string name="connection_indicator_true">Connected</string>
     <string name="connection_indicator_false">Not Connected</string>
@@ -28,5 +28,12 @@
         <item>Minutes</item>
         <item>Hours</item>
         <item>Days</item>
+    </string-array>
+    <string-array name="sample_rate_options">
+        <item>400Hz</item>
+        <item>800Hz</item>
+        <item>1600Hz</item>
+        <item>3200Hz</item>
+        <item>6400Hz</item>
     </string-array>
 </resources>
