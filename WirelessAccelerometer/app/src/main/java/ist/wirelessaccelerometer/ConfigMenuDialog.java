@@ -188,6 +188,7 @@ public class ConfigMenuDialog extends DialogFragment {
                 timeBinSize = (EditText) parent.findViewById(R.id.bin_size_input);
                 timeBinSize.requestFocus();
                 sampleRateInput.requestFocus(); // just in case they didn't enter any values
+                numTimeBins.requestFocus();
                 NameChange = (EditText) parent.findViewById(R.id.UUID_input);
 
                 Intent configIntent=new Intent();

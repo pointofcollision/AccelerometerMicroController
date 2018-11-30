@@ -68,9 +68,8 @@ public class MainActivity extends AppCompatActivity {
     private final static int REQUEST_ENABLE_BT = 1; // used to identify adding bluetooth names
     private final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
     private final static int CONNECTING_STATUS = 3; // used in bluetooth handler to identify message status
+    Alarm alarm = new Alarm();
 
-
-    private int sensorCount = 1; //used for new sensor ID naming, unless they rename it
     //Run on activity startup only, initialize button connections and threads.
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -160,8 +159,6 @@ public class MainActivity extends AppCompatActivity {
                     //if (debug) Log.d(logTag, "num time bins received: " + String.valueOf(numTimeBins));
                     //if (debug) Log.d(logTag, "time bin size received: " + String.valueOf(timeBinSize));
 
-
-                    //TODO: move this message send into a blocking thread so it waits to write until socket connected
                     final BluetoothSensor currSensor = connDevices.getSensor(receivedName);
 
                     new Thread()
@@ -180,6 +177,7 @@ public class MainActivity extends AppCompatActivity {
                                         }
                                     }
                                 }
+
                             if (!thread_started) openCommunication(currSensor);
                             int i = 0;
                             while (i < 100) {
@@ -201,11 +199,11 @@ public class MainActivity extends AppCompatActivity {
                                  i = i + 1;
 
                             }
-                            if (mConnectedThread!= null && !thread_started) {
-                                mConnectedThread.cancel();
-                                updateConnectionIndicator(findViewById(android.R.id.content));
-                                if (debug) Log.d(logTag, "need to cancel thread" );
-                            }
+                            //if (mConnectedThread!= null && !thread_started) {
+                            //    mConnectedThread.cancel();
+                            //    updateConnectionIndicator(findViewById(android.R.id.content));
+                            //    if (debug) Log.d(logTag, "need to cancel thread" );
+                            //}
                             //if (i != -1) {
                             if (debug) Log.d(logTag, "Device config thread finished" );
                             //    currSensor.setConfig_state(0);
@@ -238,6 +236,7 @@ public class MainActivity extends AppCompatActivity {
         this.registerReceiver(fragmentReceiver,intentReceiver);
 
         IntentFilter deviceDisconnect= new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+        deviceDisconnect.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         disconnectReceiver= new BroadcastReceiver(){
             @Override
             public void onReceive(Context context, Intent intent){
@@ -247,6 +246,9 @@ public class MainActivity extends AppCompatActivity {
                         mConnectedThread.cancel();
                     }
                 }
+                else if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(intent.getAction())) {
+                    if (debug) Log.d(logTag, "ACTION_ACL_CONNECTED received");
+                }
             }
         };
         this.registerReceiver(disconnectReceiver,deviceDisconnect);
@@ -254,8 +256,7 @@ public class MainActivity extends AppCompatActivity {
 
     protected void onPause() {
         //moved the unregister receivers from onstop to onpause, because onstop is not triggered by leaving the screen
-        //if it has threads running, or if the usb intent is being sent (when the device is being connected), so it can
-        //result in extra receivers running which messes up the graph. Functional with this change
+        //if it has threads running, or if the usb intent is being sent (when the device is being connected)
         super.onPause();
         unregisterReceiver(fragmentReceiver);
         unregisterReceiver(disconnectReceiver);
@@ -300,12 +301,12 @@ public class MainActivity extends AppCompatActivity {
             try
             {
                 File outputfile1 = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/data_logger_files");
-                //when directorys are created, have to RESTART DEVICE before they show up (WARNING!!)
-                //create the directory or verify the directory exists for usbmanager
+                //when directories are created, have to RESTART DEVICE before they show up (WARNING!!)
+                //create the directory or verify the directory exists
                 //outputfile1.setWritable(true);
                 //outputfile1.setReadable(true);
                 String device_name = "example";
-                File outputfilelow = new File(outputfile1, "data" + device_name + ".txt");
+                File outputfilelow = new File(outputfile1, "data_" + device_name + ".txt");
                 // outputfilelow.setReadable(true);
                 // outputfilelow.setWritable(true);
                 FileWriter fw = new FileWriter(outputfilelow, true);
@@ -455,9 +456,9 @@ public class MainActivity extends AppCompatActivity {
                 }
                 if (debug) Log.d(logTag,"socket null");
             }
-            if (debug) Log.d(logTag,"thread null");
+            //if (debug) Log.d(logTag,"thread null");
         }
-        if (debug) Log.d(logTag,"device is not connected, setting red");
+        //if (debug) Log.d(logTag,"device is not connected, setting red");
         connection_indicator.setBackgroundColor(red);
         connection_indicator.setText(R.string.connection_indicator_false);
         connection_indicator.setTextColor(black);
@@ -502,6 +503,8 @@ public class MainActivity extends AppCompatActivity {
                             if (connDevice.getName().equals(activeSensor.getName())) {
                                 if (debug) Log.d(logTag,"send start stream command");
                                 mConnectedThread.write("ACTION_START_STREAM\n\r");
+                                alarm.setAlarm(getApplicationContext(),activeSensor.getBinSize());
+                                return;
                             }
                             if (debug) Log.d(logTag,"device: " + connDevice.getName() + " != " + activeSensor.getName());
                         }
@@ -518,7 +521,7 @@ public class MainActivity extends AppCompatActivity {
     /*
     Function to launch communication with the submitted data logger.
      */
-    public void openCommunication(BluetoothSensor activeSensor) {
+    private void openCommunication(BluetoothSensor activeSensor) {
         if (debug) Log.d(logTag,"attempt to start streaming");
 
             int deviceConfigured = activeSensor.getConfig_state(); //check if configured
@@ -601,6 +604,7 @@ public class MainActivity extends AppCompatActivity {
                         if (debug) Log.d(logTag,"thread stopped");
                         mConnectedThread.write("ACTION_STOP_STREAM\n\r");
                         mConnectedThread.cancel();
+                        alarm.cancelAlarm(getApplicationContext());
                         updateConnectionIndicator(v);
                     }
                     if (debug) Log.d(logTag,"stop streaming");
@@ -812,7 +816,7 @@ public class MainActivity extends AppCompatActivity {
                         bytes = mmInStream.read(buffer, 0, bytes); // record how many bytes we actually read
                         mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer)
                                 .sendToTarget(); // Send the obtained bytes to the UI activity
-                        buffer = new byte[1024];
+                        buffer = new byte[10000];
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
